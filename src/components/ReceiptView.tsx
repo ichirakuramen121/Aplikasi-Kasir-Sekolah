@@ -132,10 +132,20 @@ export default function ReceiptView({ transaksi, config, onClose }: ReceiptViewP
 
             {/* Header Kuitansi */}
             <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 border-b-2 border-white/5 pb-5">
-              <div>
-                <h4 className="text-xl font-bold text-white tracking-tight">{config.namaSekolah}</h4>
-                <p className="text-xs text-slate-300 mt-1 max-w-xs">{config.alamatSekolah}</p>
-                <p className="text-xs text-slate-400 mt-0.5">Telp: {config.teleponSekolah}</p>
+              <div className="flex items-start gap-4">
+                {config.logoSekolah && (
+                  <img 
+                    src={config.logoSekolah} 
+                    alt="Logo Sekolah" 
+                    referrerPolicy="no-referrer"
+                    className="size-16 object-cover rounded-xl border border-white/10 bg-slate-950 shrink-0" 
+                  />
+                )}
+                <div>
+                  <h4 className="text-xl font-bold text-white tracking-tight">{config.namaSekolah}</h4>
+                  <p className="text-xs text-slate-300 mt-1 max-w-xs">{config.alamatSekolah}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">Telp: {config.teleponSekolah}</p>
+                </div>
               </div>
               <div className="text-left md:text-right flex flex-col gap-0.5 md:items-end">
                 <span className="inline-flex px-2.5 py-1 rounded bg-emerald-500/15 text-emerald-400 text-xs font-semibold uppercase tracking-wide border border-emerald-500/20">
@@ -342,10 +352,19 @@ export default function ReceiptView({ transaksi, config, onClose }: ReceiptViewP
           
           {/* Header */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "2px solid #333", paddingBottom: "15px", marginBottom: "15px" }}>
-            <div>
-              <h2 style={{ margin: 0, fontSize: "22px", fontWeight: "bold" }}>{config.namaSekolah}</h2>
-              <p style={{ margin: "5px 0 0 0", fontSize: "11px", color: "#333" }}>{config.alamatSekolah}</p>
-              <p style={{ margin: "3px 0 0 0", fontSize: "11px", color: "#333" }}>Telp: {config.teleponSekolah}</p>
+            <div style={{ display: "flex", alignItems: "start", gap: "15px" }}>
+              {config.logoSekolah && (
+                <img 
+                  src={config.logoSekolah} 
+                  alt="Logo" 
+                  style={{ width: "60px", height: "60px", objectFit: "cover", borderRadius: "8px", border: "1px solid #ddd" }} 
+                />
+              )}
+              <div>
+                <h2 style={{ margin: 0, fontSize: "22px", fontWeight: "bold" }}>{config.namaSekolah}</h2>
+                <p style={{ margin: "5px 0 0 0", fontSize: "11px", color: "#333" }}>{config.alamatSekolah}</p>
+                <p style={{ margin: "3px 0 0 0", fontSize: "11px", color: "#333" }}>Telp: {config.teleponSekolah}</p>
+              </div>
             </div>
             <div style={{ textAlign: "right" }}>
               <h4 style={{ margin: 0, fontSize: "16px", textTransform: "uppercase", letterSpacing: "1px" }}>BUKTI KUITANSI</h4>

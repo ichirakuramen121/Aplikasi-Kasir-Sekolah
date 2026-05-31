@@ -44,9 +44,18 @@ export default function LoginView({ onLoginSuccess, config, isDark }: LoginViewP
         
         {/* Brand Banner */}
         <div className="text-center mb-8 animate-fade-in">
-          <div className="inline-flex size-16 bg-blue-600 rounded-2xl items-center justify-center text-white shadow-xl shadow-blue-500/20 mb-4 transition-transform hover:scale-105">
-            <Building2 className="size-8" />
-          </div>
+          {config.logoSekolah ? (
+            <img 
+              src={config.logoSekolah} 
+              alt="Logo Sekolah" 
+              referrerPolicy="no-referrer"
+              className="inline-flex size-20 object-cover bg-slate-900 rounded-2xl border border-white/15 shadow-xl shadow-blue-500/10 mb-4 transition-transform hover:scale-105"
+            />
+          ) : (
+            <div className="inline-flex size-16 bg-blue-600 rounded-2xl items-center justify-center text-white shadow-xl shadow-blue-500/20 mb-4 transition-transform hover:scale-105">
+              <Building2 className="size-8" />
+            </div>
+          )}
           <h1 className={`text-2xl font-extrabold tracking-tight transition-colors duration-300 ${isDark ? "text-white" : "text-slate-900"}`}>
             {config.namaSekolah || "SMA Nusantara Mandiri"}
           </h1>

@@ -526,13 +526,22 @@ export default function ReportsView({ transaksiList, config }: ReportsViewProps)
       <div className="printable-report bg-white text-black leading-relaxed" style={{ fontFamily: "sans-serif" }}>
         
         {/* Header Laporan */}
-        <div style={{ textAlign: "center", borderBottom: "3px double #333", paddingBottom: "15px", marginBottom: "20px" }}>
-          <h2 style={{ margin: 0, textTransform: "uppercase", fontSize: "20px", fontWeight: "bold" }}>LAPORAN BULANAN PENERIMAAN KAS</h2>
-          <h3 style={{ margin: "5px 0 0 0", fontSize: "16px", textTransform: "uppercase" }}>{config.namaSekolah}</h3>
-          <p style={{ margin: "5px 0 0 0", fontSize: "11px", color: "#555" }}>{config.alamatSekolah} • Telp: {config.teleponSekolah}</p>
-          <p style={{ margin: "10px 0 0 0", fontSize: "13px", fontWeight: "bold" }}>
-            Laporan Periode: {activeMonthLabel} | Filter Kategori: {selectedType === "Semua" ? "Semua Pembayaran" : selectedType}
-          </p>
+        <div style={{ display: "flex", alignItems: "center", borderBottom: "3px double #333", paddingBottom: "15px", marginBottom: "20px", gap: "20px" }}>
+          {config.logoSekolah && (
+            <img 
+              src={config.logoSekolah} 
+              alt="Logo Sekolah" 
+              style={{ width: "70px", height: "70px", objectFit: "cover", borderRadius: "10px", border: "1px solid #ddd" }} 
+            />
+          )}
+          <div style={{ flex: 1, textAlign: config.logoSekolah ? "left" : "center" }}>
+            <h2 style={{ margin: 0, textTransform: "uppercase", fontSize: "18px", fontWeight: "bold" }}>LAPORAN BULANAN PENERIMAAN KAS</h2>
+            <h3 style={{ margin: "5px 0 0 0", fontSize: "15px", textTransform: "uppercase", fontWeight: "bold" }}>{config.namaSekolah}</h3>
+            <p style={{ margin: "3px 0 0 0", fontSize: "11px", color: "#555" }}>{config.alamatSekolah} • Telp: {config.teleponSekolah}</p>
+            <p style={{ margin: "5px 0 0 0", fontSize: "11px", fontWeight: "bold", color: "#333" }}>
+              Laporan Periode: {activeMonthLabel} | Filter Kategori: {selectedType === "Semua" ? "Semua Pembayaran" : selectedType}
+            </p>
+          </div>
         </div>
 
         {/* Ringkasan Akal */}

@@ -82,6 +82,7 @@ export default function App() {
   const [setOpenRekeningBank, setSetOpenRekeningBank] = useState("");
   const [setOpenPemilikRekening, setSetOpenPemilikRekening] = useState("");
   const [setOpenMerchantId, setSetOpenMerchantId] = useState("");
+  const [setOpenLogo, setSetOpenLogo] = useState("");
   const [setOpenUsername, setSetOpenUsername] = useState("");
   const [setOpenPassword, setSetOpenPassword] = useState("");
 
@@ -444,6 +445,7 @@ export default function App() {
     setSetOpenRekeningBank(config.rekeningBank || "7123456789");
     setSetOpenPemilikRekening(config.pemilikRekening || "Bendahara SMA Nusantara Mandiri");
     setSetOpenMerchantId(config.merchantId || "");
+    setSetOpenLogo(config.logoSekolah || "");
     
     // Load auth configurations from localStorage (default admin/admin123)
     setSetOpenUsername(localStorage.getItem("KAS_SEKOLAH_USER") || "admin");
@@ -463,7 +465,8 @@ export default function App() {
       namaBank: setOpenNamaBank,
       rekeningBank: setOpenRekeningBank,
       pemilikRekening: setOpenPemilikRekening,
-      merchantId: setOpenMerchantId
+      merchantId: setOpenMerchantId,
+      logoSekolah: setOpenLogo
     };
     saveLocalConfig(updated);
     
@@ -507,9 +510,18 @@ export default function App() {
         
         {/* Brand */}
         <div className="flex items-center gap-3">
-          <div className="size-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
-            <Building2 className="size-5.5" />
-          </div>
+          {config.logoSekolah ? (
+            <img 
+              src={config.logoSekolah} 
+              alt="Logo" 
+              referrerPolicy="no-referrer"
+              className="size-10 object-cover rounded-xl border border-white/10 shadow-lg shadow-white/5 bg-slate-950" 
+            />
+          ) : (
+            <div className="size-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
+              <Building2 className="size-5.5" />
+            </div>
+          )}
           <div>
             <h1 className={`font-extrabold text-sm tracking-tight transition-colors duration-300 ${isDark ? "text-white" : "text-slate-900"}`}>{config.namaSekolah}</h1>
             <p className={`text-[10px] font-semibold uppercase tracking-wider flex items-center gap-1 transition-colors duration-300 ${isDark ? "text-slate-305" : "text-slate-500"}`}>
@@ -791,8 +803,64 @@ export default function App() {
               </button>
             </div>
 
-            <form onSubmit={handleSaveSchoolSettings} className="p-6 space-y-4">
+            <form onSubmit={handleSaveSchoolSettings} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
               
+              {/* Logo Sekolah Upload */}
+              <div className="space-y-1 bg-white/5 p-3 rounded-xl border border-white/5">
+                <label className="text-xs font-bold text-slate-300 block text-left">Logo Lembaga / Sekolah</label>
+                <div className="flex items-center gap-4 mt-1.5">
+                  {setOpenLogo ? (
+                    <div className="relative group shrink-0">
+                      <img 
+                        src={setOpenLogo} 
+                        alt="Logo Sekolah" 
+                        referrerPolicy="no-referrer"
+                        className="size-16 object-cover rounded-xl border border-white/10 bg-slate-950" 
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setSetOpenLogo("")}
+                        className="absolute -top-1.5 -right-1.5 p-1 bg-rose-600 hover:bg-rose-500 text-white rounded-full transition-all shadow-md cursor-pointer"
+                        title="Hapus Logo"
+                      >
+                        <X className="size-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="size-16 rounded-xl border border-dashed border-white/25 flex flex-col items-center justify-center bg-slate-1000 text-slate-500 text-[10px] shrink-0 font-medium">
+                      No Image
+                    </div>
+                  )}
+                  <div className="flex-1 text-left">
+                    <input 
+                      type="file"
+                      id="logo-upload-input"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (event) => {
+                            if (event.target?.result) {
+                              setSetOpenLogo(event.target.result as string);
+                            }
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                    <label 
+                      htmlFor="logo-upload-input"
+                      className="px-3 py-1.5 inline-block bg-blue-600/20 hover:bg-blue-600/35 border border-blue-500/30 text-blue-300 hover:text-white rounded-lg text-xs font-bold cursor-pointer transition-all"
+                    >
+                      Pilih File Logo
+                    </label>
+                    <p className="text-[10px] text-slate-400 mt-1 leading-normal">Format PNG/JPG, maks 500kb. Logo akan otomatis dipasang pada kuitansi dan kop laporan.</p>
+                  </div>
+                </div>
+              </div>
+
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-300">Nama Lembaga / Sekolah</label>
                 <input
