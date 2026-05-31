@@ -91,8 +91,8 @@ export default function ReceiptView({ transaksi, config, onClose }: ReceiptViewP
   );
 
   return (
-    <div id="receipt-modal-overlay" className="fixed inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fade-in no-print">
-      <div className="glass text-white rounded-2xl w-full max-w-2xl shadow-2xl border border-white/10 overflow-hidden flex flex-col max-h-[90vh]">
+    <div id="receipt-modal-overlay" className="fixed inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fade-in">
+      <div className="glass text-white rounded-2xl w-full max-w-2xl shadow-2xl border border-white/10 overflow-hidden flex flex-col max-h-[90vh] no-print">
         
         {/* Header Modal */}
         <div className="flex items-center justify-between px-6 py-4 bg-white/5 border-b border-white/10">
