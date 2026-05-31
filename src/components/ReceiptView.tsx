@@ -3,9 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import React, { useState, useEffect } from "react";
 import { Transaksi, AppConfig } from "../types";
 import { formatRupiah, terbilang, formatBulanIndo } from "../utils";
 import { Printer, X, CreditCard } from "lucide-react";
+import QRCode from "qrcode";
 
 interface ReceiptViewProps {
   transaksi: Transaksi | null;
@@ -89,6 +91,28 @@ export default function ReceiptView({ transaksi, config, onClose }: ReceiptViewP
     transaksi.id,
     config.merchantId
   );
+
+  const [qrisQrUrl, setQrisQrUrl] = useState<string>("");
+
+  useEffect(() => {
+    let active = true;
+    QRCode.toDataURL(qrisPayload, {
+      margin: 1,
+      width: 250,
+      errorCorrectionLevel: 'M'
+    })
+      .then(url => {
+        if (active) {
+          setQrisQrUrl(url);
+        }
+      })
+      .catch(err => {
+        console.error("Failed to generate QR code Locally:", err);
+      });
+    return () => {
+      active = false;
+    };
+  }, [qrisPayload]);
 
   return (
     <div id="receipt-modal-overlay" className="fixed inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fade-in">
@@ -233,7 +257,7 @@ export default function ReceiptView({ transaksi, config, onClose }: ReceiptViewP
             <div className="mt-2 p-4 rounded-xl border border-dashed border-white/20 bg-white/5 flex flex-col sm:flex-row items-center gap-4 text-left">
               <div className="bg-white p-2 rounded-lg flex-shrink-0 flex flex-col items-center justify-center">
                 <img 
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(qrisPayload)}`} 
+                  src={qrisQrUrl || `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(qrisPayload)}`} 
                   alt="QRIS Pembayaran" 
                   className="size-24"
                   referrerPolicy="no-referrer"
@@ -429,7 +453,7 @@ export default function ReceiptView({ transaksi, config, onClose }: ReceiptViewP
           <div style={{ display: "flex", border: "1px dashed #777", padding: "12px", borderRadius: "10px", margin: "20px 0", fontSize: "12px", alignItems: "center", gap: "20px" }}>
             <div style={{ textAlign: "center" }}>
               <img 
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(qrisPayload)}`} 
+                src={qrisQrUrl || `https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(qrisPayload)}`} 
                 alt="QRIS Pembayaran" 
                 style={{ width: "95px", height: "95px" }}
                 referrerPolicy="no-referrer"
