@@ -76,8 +76,47 @@ export function generateQRISString(merchantName: string, city: string, amount: n
   return qris + crcValue;
 }
 
+// Helper to format a Date into Indonesian string format: "DD MMMM YYYY HH:mm:ss"
+export function formatIndonesianDateTime(date: Date): string {
+  const months = [
+    "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+    "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+  ];
+  const day = date.getDate();
+  const month = months[date.getMonth()];
+  const year = date.getFullYear();
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const seconds = String(date.getSeconds()).padStart(2, "0");
+  return `${day} ${month} ${year} ${hours}:${minutes}:${seconds}`;
+}
+
 export default function ReceiptView({ transaksi, config, onClose }: ReceiptViewProps) {
   if (!transaksi) return null;
+
+  const [selectedTempat, setSelectedTempat] = useState<string>("");
+  const [selectedTanggal, setSelectedTanggal] = useState<string>("");
+  const [isRealtime, setIsRealtime] = useState<boolean>(true);
+
+  // Initialize selectedTempat with config city or default
+  useEffect(() => {
+    const defaultCity = config.alamatSekolah.split(",")[0]?.trim() || "Bandung";
+    setSelectedTempat(defaultCity);
+  }, [config]);
+
+  // Set real-time clock interval
+  useEffect(() => {
+    if (!isRealtime) return;
+
+    // Set initial date/time
+    setSelectedTanggal(formatIndonesianDateTime(new Date()));
+
+    const timer = setInterval(() => {
+      setSelectedTanggal(formatIndonesianDateTime(new Date()));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [isRealtime]);
 
   const handlePrint = () => {
     window.print();
@@ -137,6 +176,60 @@ export default function ReceiptView({ transaksi, config, onClose }: ReceiptViewP
         {/* Receipt Content Container */}
         <div className="p-6 md:p-8 overflow-y-auto flex-1 bg-transparent">
           
+          {/* Pengaturan Cetak Kuitansi (Manual & Realtime) */}
+          <div className="mb-6 bg-white/5 border border-white/10 rounded-xl p-4 space-y-3 no-print text-sm">
+            <div className="flex items-center justify-between">
+              <h4 className="font-semibold text-blue-400 flex items-center gap-1.5 text-xs uppercase tracking-wider">
+                <svg className="size-4 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <circle cx="12" cy="12" r="3"/>
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                </svg>
+                Pengaturan Cetak Kuitansi
+              </h4>
+              <button 
+                onClick={() => {
+                  setIsRealtime(!isRealtime);
+                  if (!isRealtime) {
+                    setSelectedTanggal(formatIndonesianDateTime(new Date()));
+                  }
+                }}
+                className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-bold tracking-wider uppercase transition-all ${
+                  isRealtime 
+                    ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" 
+                    : "bg-slate-500/15 text-slate-400 border border-slate-500/20 hover:bg-slate-500/25"
+                }`}
+              >
+                <span className={`inline-block size-1.5 rounded-full ${isRealtime ? "bg-emerald-400" : "bg-slate-500"}`} />
+                {isRealtime ? "Realtime Aktif" : "Realtime Mati"}
+              </button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Tempat Kuitansi (Manual)</label>
+                <input 
+                  type="text"
+                  value={selectedTempat}
+                  onChange={(e) => setSelectedTempat(e.target.value)}
+                  className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-blue-500 font-medium"
+                  placeholder="Masukkan kota tempat kuitansi..."
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Tanggal Kuitansi</label>
+                <input 
+                  type="text"
+                  value={selectedTanggal}
+                  onChange={(e) => {
+                    setIsRealtime(false);
+                    setSelectedTanggal(e.target.value);
+                  }}
+                  className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-blue-500 font-mono font-medium"
+                  placeholder="Contoh: 31 Mei 2026 21:00"
+                />
+              </div>
+            </div>
+          </div>
+
           {/* Main Visual Kuitansi */}
           <div className="bg-slate-900/95 border border-white/10 p-6 md:p-8 rounded-xl shadow-xl relative overflow-hidden text-slate-100">
             {/* Stamp Watermark Background */}
@@ -176,7 +269,7 @@ export default function ReceiptView({ transaksi, config, onClose }: ReceiptViewP
                   Bukti Pembayaran {transaksi.metode}
                 </span>
                 <span className="text-xs font-mono text-slate-400 mt-2">No: {transaksi.id}</span>
-                <span className="text-xs text-slate-400">Tanggal: {transaksi.tanggal}</span>
+                <span className="text-xs text-slate-400">Tanggal: {selectedTanggal}</span>
               </div>
             </div>
 
@@ -303,7 +396,10 @@ export default function ReceiptView({ transaksi, config, onClose }: ReceiptViewP
                 </p>
               </div>
               <div className="text-center min-w-[150px]">
-                <p className="text-xs text-slate-300 font-sans">Penerima,</p>
+                <p className="text-[11px] text-slate-300 font-sans italic mb-1" title="Kota dan tanggal kuitansi yang dapat disesuaikan di atas">
+                  {selectedTempat}, {selectedTanggal.split(" ").slice(0, 3).join(" ")}
+                </p>
+                <p className="text-xs text-slate-400 font-sans font-semibold">Penerima,</p>
                 <div className="h-12 flex items-center justify-center">
                   {transaksi.sisaTunggakan && transaksi.sisaTunggakan > 0 ? (
                     <span className="text-amber-500 font-mono font-semibold text-xs border border-amber-500/35 border-dashed px-2 py-1 rotate-[-2deg] rounded bg-amber-500/10 select-none">
@@ -393,7 +489,7 @@ export default function ReceiptView({ transaksi, config, onClose }: ReceiptViewP
             <div style={{ textAlign: "right" }}>
               <h4 style={{ margin: 0, fontSize: "16px", textTransform: "uppercase", letterSpacing: "1px" }}>BUKTI KUITANSI</h4>
               <p style={{ margin: "5px 0 0 0", fontSize: "12px", fontFamily: "monospace" }}>No: {transaksi.id}</p>
-              <p style={{ margin: "3px 0 0 0", fontSize: "11px" }}>Tanggal: {transaksi.tanggal}</p>
+              <p style={{ margin: "3px 0 0 0", fontSize: "11px" }}>Tanggal: {selectedTanggal}</p>
             </div>
           </div>
 
@@ -478,7 +574,7 @@ export default function ReceiptView({ transaksi, config, onClose }: ReceiptViewP
               <p style={{ margin: "5px 0 0 0" }}>* Dicetak otomatis oleh Sistem Kasir {config.namaSekolah}.</p>
             </div>
             <div style={{ textAlign: "center", minWidth: "180px", fontSize: "12px" }}>
-              <p style={{ margin: 0 }}>Bandung, {transaksi.tanggal.split(" ")[0]}</p>
+              <p style={{ margin: 0 }}>{selectedTempat}, {selectedTanggal.split(" ").slice(0, 3).join(" ")}</p>
               <p style={{ margin: "5px 0 0 0" }}>Petugas Keuangan,</p>
               <div style={{ height: "60px", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <span style={{ border: `2px solid ${transaksi.sisaTunggakan && transaksi.sisaTunggakan > 0 ? "#f59e0b" : "#555"}`, color: transaksi.sisaTunggakan && transaksi.sisaTunggakan > 0 ? "#d97706" : "#000", padding: "5px 12px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", opacity: 0.8, textTransform: "uppercase" }}>
