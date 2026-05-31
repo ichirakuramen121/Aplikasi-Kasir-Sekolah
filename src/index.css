@@ -299,9 +299,14 @@
     color: black !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+    visibility: hidden !important;
   }
   
-  #root, .no-print {
+  #root {
+    visibility: hidden !important;
+  }
+
+  .no-print {
     display: none !important;
     height: 0 !important;
     margin: 0 !important;
@@ -310,6 +315,10 @@
   }
   
   /* Show only the active print area */
+  .printable-receipt, .printable-receipt * {
+    visibility: visible !important;
+  }
+  
   .printable-receipt {
     display: block !important;
     position: absolute !important;
@@ -321,9 +330,12 @@
     padding: 1.5rem !important;
     box-shadow: none !important;
     border: none !important;
-    visibility: visible !important;
     background: white !important;
     color: black !important;
+  }
+  
+  .printable-report, .printable-report * {
+    visibility: visible !important;
   }
   
   .printable-report {
@@ -337,7 +349,6 @@
     padding: 2rem !important;
     box-shadow: none !important;
     border: none !important;
-    visibility: visible !important;
     background: white !important;
     color: black !important;
   }

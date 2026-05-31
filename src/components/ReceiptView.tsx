@@ -138,7 +138,7 @@ export default function ReceiptView({ transaksi, config, onClose }: ReceiptViewP
                     src={config.logoSekolah} 
                     alt="Logo Sekolah" 
                     referrerPolicy="no-referrer"
-                    className="size-16 object-cover rounded-xl border border-white/10 bg-slate-950 shrink-0" 
+                    className="size-16 object-contain shrink-0" 
                   />
                 )}
                 <div>
@@ -357,7 +357,7 @@ export default function ReceiptView({ transaksi, config, onClose }: ReceiptViewP
                 <img 
                   src={config.logoSekolah} 
                   alt="Logo" 
-                  style={{ width: "60px", height: "60px", objectFit: "cover", borderRadius: "8px", border: "1px solid #ddd" }} 
+                  style={{ width: "60px", height: "60px", objectFit: "contain" }} 
                 />
               )}
               <div>

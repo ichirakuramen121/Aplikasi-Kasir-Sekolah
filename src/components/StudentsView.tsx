@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Siswa } from "../types";
+import { Siswa, AppConfig } from "../types";
 import { formatRupiah, DAFTAR_BULAN } from "../utils";
 import React, { useState } from "react";
 import { 
@@ -18,11 +18,16 @@ import {
   Filter,
   Upload,
   Download,
-  Check
+  Check,
+  FileSpreadsheet,
+  FileText
 } from "lucide-react";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 
 interface StudentsViewProps {
   siswaList: Siswa[];
+  config?: AppConfig;
   onAddSiswa: (siswa: Siswa) => void;
   onEditSiswa: (siswa: Siswa) => void;
   onDeleteSiswa: (id: string) => void;
@@ -31,6 +36,7 @@ interface StudentsViewProps {
 
 export default function StudentsView({ 
   siswaList, 
+  config,
   onAddSiswa, 
   onEditSiswa, 
   onDeleteSiswa,
@@ -254,6 +260,179 @@ export default function StudentsView({
     return matchesSearch && matchesClass && matchesStatus;
   });
 
+  // Export to Excel / CSV function
+  const exportStudentsToCSV = () => {
+    if (filteredStudents.length === 0) {
+      alert("Tidak ada data siswa untuk diekspor.");
+      return;
+    }
+
+    const headers = [
+      "NIS",
+      "Nama Siswa",
+      "Kelas",
+      "Angkatan",
+      "Tarif SPP Bulanan (Rp)",
+      "Status SPP Bulan Ini",
+      "Email Orang Tua",
+      "Telepon Orang Tua"
+    ];
+
+    const rows = filteredStudents.map(s => {
+      const status = s.statusSpp[currentMonthKey] || "Belum_Bayar";
+      const isLunas = status === "Lunas";
+      const isKurang = typeof status === "string" && status.startsWith("Kurang:");
+      let statusStr = "Belum Lunas";
+      if (isLunas) statusStr = "Lunas";
+      else if (isKurang) statusStr = `Kurang: Rp ${status.split(":")[1]}`;
+
+      return [
+        s.nis,
+        s.nama,
+        s.kelas,
+        s.angkatan,
+        s.tagihanSpp,
+        statusStr,
+        s.emailOrangTua || "-",
+        s.teleponOrangTua || "-"
+      ];
+    });
+
+    // Add Byte Order Mark (BOM) for Excel compatibility with UTF-8 character encoding
+    const csvContent = "\uFEFF" 
+      + [headers.join(","), ...rows.map(r => r.map(val => `"${String(val).replace(/"/g, '""')}"`).join(","))].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Daftar_Siswa_${selectedClassFilter === "Semua" ? "Semua_Kelas" : selectedClassFilter}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Export to PDF function
+  const exportStudentsToPDF = () => {
+    if (filteredStudents.length === 0) {
+      alert("Tidak ada data siswa untuk diekspor.");
+      return;
+    }
+
+    const doc = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4"
+    });
+
+    const primaryColor = [26, 54, 93]; 
+    const secondaryColor = [74, 85, 104];
+    const blackColor = [17, 24, 39];
+
+    // Header title
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.text("DAFTAR SISWA & STATUS TUNGGAKAN SPP", 105, 15, { align: "center" });
+
+    doc.setFontSize(11);
+    doc.text(config?.namaSekolah || "Aplikasi Kasir Sekolah", 105, 21, { align: "center" });
+
+    // Header double-lines separator
+    doc.setDrawColor(150, 150, 150);
+    doc.setLineWidth(0.8);
+    doc.line(15, 25, 195, 25);
+
+    // Meta parameters left/right
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(blackColor[0], blackColor[1], blackColor[2]);
+    doc.text("Filter Kelas:", 15, 32);
+    doc.setFont("helvetica", "normal");
+    doc.text(selectedClassFilter === "Semua" ? "Semua Kelas" : `Kelas ${selectedClassFilter}`, 40, 32);
+
+    doc.setFont("helvetica", "bold");
+    doc.text("Status SPP:", 120, 32);
+    doc.setFont("helvetica", "normal");
+    const statusLabel = statusSppFilter === "Semua" ? "Semua Status" : statusSppFilter === "Lunas" ? "Lunas Bulan Ini" : "Belum Lunas Bulan Ini";
+    doc.text(statusLabel, 145, 32);
+
+    // Aggregations display box
+    doc.setFillColor(243, 244, 246);
+    doc.roundedRect(15, 37, 180, 12, 1, 1, "F");
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+    const totalSiswaCount = filteredStudents.length;
+    const lunasCount = filteredStudents.filter(s => s.statusSpp[currentMonthKey] === "Lunas").length;
+    const belumLunasCount = totalSiswaCount - lunasCount;
+
+    doc.text(`TOTAL TAMPIL: ${totalSiswaCount} SISWA`, 20, 44);
+    doc.setTextColor(21, 128, 61);
+    doc.text(`LUNAS SPP MEI 2026: ${lunasCount}`, 80, 44);
+    doc.setTextColor(185, 28, 28);
+    doc.text(`BELUM LUNAS MEI 2026: ${belumLunasCount}`, 140, 44);
+
+    // Table mapping
+    const tableHeaders = [
+      ["No", "NIS", "Nama Siswa", "Kelas", "Angkatan", "Tarif SPP", "Status SPP (Bulan Ini)"]
+    ];
+
+    const tableBody = filteredStudents.map((s, idx) => {
+      const statusValue = s.statusSpp[currentMonthKey] || "Belum_Bayar";
+      const isLunas = statusValue === "Lunas";
+      const isKurang = typeof statusValue === "string" && statusValue.startsWith("Kurang:");
+      let sStr = "Belum Lunas";
+      if (isLunas) sStr = "Lunas";
+      else if (isKurang) sStr = `Kurang: Rp ${statusValue.split(":")[1]}`;
+
+      return [
+        idx + 1,
+        s.nis,
+        s.nama,
+        s.kelas,
+        s.angkatan,
+        formatRupiah(s.tagihanSpp).replace(",00", ""),
+        sStr
+      ];
+    });
+
+    autoTable(doc, {
+      startY: 53,
+      head: tableHeaders,
+      body: tableBody,
+      theme: "grid",
+      headStyles: {
+        fillColor: [26, 54, 93],
+        textColor: [255, 255, 255],
+        fontSize: 8,
+        halign: "left",
+        fontStyle: "bold"
+      },
+      columnStyles: {
+        0: { cellWidth: 10, halign: "center" },
+        1: { cellWidth: 20 },
+        2: { cellWidth: 50, fontStyle: "bold" },
+        3: { cellWidth: 20 },
+        4: { cellWidth: 15, halign: "center" },
+        5: { cellWidth: 25, halign: "right" },
+        6: { cellWidth: 40, halign: "center" }
+      },
+      styles: {
+        textColor: [51, 51, 51],
+        fontSize: 8,
+        cellPadding: 2,
+        valign: "middle"
+      },
+      alternateRowStyles: {
+        fillColor: [249, 250, 251]
+      }
+    });
+
+    doc.save(`Daftar_Siswa_${selectedClassFilter}.pdf`);
+  };
+
   // Highlight search queries in text strings
   const highlightText = (text: string, query: string, fieldId: string) => {
     if (!query.trim()) return <span id={`${fieldId}-text`}>{text}</span>;
@@ -413,6 +592,24 @@ export default function StudentsView({
 
         {/* Right action buttons */}
         <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={exportStudentsToCSV}
+            className="flex items-center gap-2 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 border border-emerald-500/25 rounded-xl font-bold px-4 py-2.5 text-xs transition-colors cursor-pointer text-center justify-center active:scale-[0.98]"
+            title="Ekspor data siswa terseleksi ke Excel (CSV)"
+          >
+            <FileSpreadsheet className="size-4 text-emerald-400 animate-bounce" />
+            Ekspor Excel
+          </button>
+
+          <button
+            onClick={exportStudentsToPDF}
+            className="flex items-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/25 rounded-xl font-bold px-4 py-2.5 text-xs transition-colors cursor-pointer text-center justify-center active:scale-[0.98]"
+            title="Ekspor data siswa terseleksi ke PDF"
+          >
+            <FileText className="size-4 text-red-400 animate-pulse" />
+            Ekspor PDF
+          </button>
+
           <button
             onClick={() => setIsImportOpen(!isImportOpen)}
             className={`flex items-center gap-2 rounded-xl font-bold px-4 py-2.5 text-xs border transition-all cursor-pointer text-center justify-center active:scale-[0.98] ${

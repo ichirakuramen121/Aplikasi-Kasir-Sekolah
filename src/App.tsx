@@ -515,7 +515,7 @@ export default function App() {
               src={config.logoSekolah} 
               alt="Logo" 
               referrerPolicy="no-referrer"
-              className="size-10 object-cover rounded-xl border border-white/10 shadow-lg shadow-white/5 bg-slate-950" 
+              className="size-10 object-contain" 
             />
           ) : (
             <div className="size-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
@@ -740,6 +740,7 @@ export default function App() {
           {activeTab === 'students' && (
             <StudentsView
               siswaList={siswaList}
+              config={config}
               onAddSiswa={handleAddSiswa}
               onEditSiswa={handleEditSiswa}
               onDeleteSiswa={handleDeleteSiswa}
@@ -815,7 +816,7 @@ export default function App() {
                         src={setOpenLogo} 
                         alt="Logo Sekolah" 
                         referrerPolicy="no-referrer"
-                        className="size-16 object-cover rounded-xl border border-white/10 bg-slate-950" 
+                        className="size-16 object-contain" 
                       />
                       <button
                         type="button"

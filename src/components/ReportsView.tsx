@@ -424,9 +424,10 @@ export default function ReportsView({ transaksiList, config }: ReportsViewProps)
             <button
               onClick={exportToCSV}
               className="flex items-center gap-1.5 px-3.5 py-2 hover:bg-white/10 border border-white/10 text-white font-semibold rounded-xl text-xs transition-colors cursor-pointer"
+              title="Ekspor laporan ke format Excel (CSV)"
             >
               <FileSpreadsheet className="size-4 text-emerald-400 animate-bounce" />
-              Ekspor CSV
+              Ekspor Excel/CSV
             </button>
             <button
               onClick={exportToPDF}
@@ -531,7 +532,7 @@ export default function ReportsView({ transaksiList, config }: ReportsViewProps)
             <img 
               src={config.logoSekolah} 
               alt="Logo Sekolah" 
-              style={{ width: "70px", height: "70px", objectFit: "cover", borderRadius: "10px", border: "1px solid #ddd" }} 
+              style={{ width: "70px", height: "70px", objectFit: "contain" }} 
             />
           )}
           <div style={{ flex: 1, textAlign: config.logoSekolah ? "left" : "center" }}>

@@ -49,7 +49,7 @@ export default function LoginView({ onLoginSuccess, config, isDark }: LoginViewP
               src={config.logoSekolah} 
               alt="Logo Sekolah" 
               referrerPolicy="no-referrer"
-              className="inline-flex size-20 object-cover bg-slate-900 rounded-2xl border border-white/15 shadow-xl shadow-blue-500/10 mb-4 transition-transform hover:scale-105"
+              className="inline-flex size-20 object-contain mb-4 transition-transform hover:scale-105"
             />
           ) : (
             <div className="inline-flex size-16 bg-blue-600 rounded-2xl items-center justify-center text-white shadow-xl shadow-blue-500/20 mb-4 transition-transform hover:scale-105">
