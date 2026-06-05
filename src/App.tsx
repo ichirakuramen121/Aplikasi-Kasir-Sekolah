@@ -173,8 +173,8 @@ export default function App() {
     currentTrx = transaksiList,
     currentBiaya = biayaList,
     currentLogs = notificationLogs
-  ) => {
-    if (!url) return;
+  ): Promise<{ success: boolean; message: string }> => {
+    if (!url) return { success: false, message: "URL Google Apps Script kosong atau belum diset." };
     setConnectionStatus('testing');
     
     try {
@@ -218,12 +218,14 @@ export default function App() {
           setNotificationLogs(sheetLogs);
           localStorage.setItem("KAS_SEKOLAH_LOGS", JSON.stringify(sheetLogs));
         }
+        return { success: true, message: "Koneksi ke Google Sheets berhasil terjalin dan seluruh records tersinkronisasi!" };
       } else {
         throw new Error(body.error || "Gagal menghubungi Apps Script.");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("[Sheets Sync error]", err);
       setConnectionStatus('disconnected');
+      return { success: false, message: err.message || "Gagal menghubungkan ke proxy Google API." };
     }
   };
 
@@ -780,7 +782,7 @@ export default function App() {
               onSyncAllData={handleUploadDataToSheet}
               connectionStatus={connectionStatus}
               onTestConnection={async () => {
-                await testSheetConnection();
+                return await testSheetConnection();
               }}
             />
           )}

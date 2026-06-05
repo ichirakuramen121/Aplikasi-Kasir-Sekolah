@@ -21,7 +21,7 @@ interface SheetIntegrationViewProps {
   onUpdateConfig: (newConfig: AppConfig) => void;
   onSyncAllData: () => Promise<{ success: boolean; message: string }>;
   connectionStatus: 'connected' | 'disconnected' | 'testing';
-  onTestConnection: () => Promise<void>;
+  onTestConnection: () => Promise<{ success: boolean; message: string }>;
 }
 
 export default function SheetIntegrationView({
@@ -36,13 +36,29 @@ export default function SheetIntegrationView({
   const [copied, setCopied] = useState(false);
   const [syncLoading, setSyncLoading] = useState(false);
   const [syncResult, setSyncResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [testLoading, setTestLoading] = useState(false);
 
   const handleSave = () => {
     onUpdateConfig({
       ...config,
       sheetUrl: sheetUrl.trim()
     });
+    setTestResult(null); // Reset when URL changes
     alert("URL Google Apps Script berhasil disimpan. Silahkan lakukan 'Uji Koneksi'!");
+  };
+
+  const handleTestConnection = async () => {
+    setTestLoading(true);
+    setTestResult(null);
+    try {
+      const res = await onTestConnection();
+      setTestResult(res);
+    } catch (err: any) {
+      setTestResult({ success: false, message: err.message || "Gagal menguji koneksi." });
+    } finally {
+      setTestLoading(false);
+    }
   };
 
   const handleSync = async () => {
@@ -381,11 +397,11 @@ function updateAllLogs(sheet, logsList) {
                 Simpan URL
               </button>
               <button
-                disabled={!config.sheetUrl || connectionStatus === 'testing'}
-                onClick={onTestConnection}
+                disabled={!config.sheetUrl || connectionStatus === 'testing' || testLoading}
+                onClick={handleTestConnection}
                 className="px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white border border-white/10 font-semibold text-xs rounded-xl cursor-pointer flex items-center gap-1 disabled:opacity-50 active:transform active:scale-[0.98] transition-all"
               >
-                <RefreshCw className={`size-3.5 ${connectionStatus === 'testing' ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`size-3.5 ${connectionStatus === 'testing' || testLoading ? 'animate-spin' : ''}`} />
                 Uji Koneksi
               </button>
             </div>
@@ -393,6 +409,22 @@ function updateAllLogs(sheet, logsList) {
           <p className="text-[10px] text-slate-400 leading-relaxed max-w-xl">
             * Apabila dikosongkan, aplikasi akan berjalan dalam mode offline (menyimpan data di memori browser lokal/localStorage). Integrasi dapat diisi kapan saja setelah script dideploy.
           </p>
+
+          {testResult && (
+            <div className={`p-3.5 rounded-xl border flex gap-2.5 text-xs leading-relaxed max-w-xl animate-fade-in ${
+              testResult.success 
+                ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-300" 
+                : "bg-red-500/10 border-red-500/20 text-red-300"
+            }`}>
+              {testResult.success ? <CheckCircle className="size-4 shrink-0 text-emerald-400" /> : <AlertTriangle className="size-4 shrink-0 text-red-405" />}
+              <div className="flex flex-col gap-1">
+                <span className="font-bold uppercase tracking-wider text-[10px]">
+                  {testResult.success ? "Koneksi Berhasil" : "Koneksi Gagal"}
+                </span>
+                <span>{testResult.message}</span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Sync panel */}
