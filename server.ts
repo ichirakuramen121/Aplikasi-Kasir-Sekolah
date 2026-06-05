@@ -36,6 +36,15 @@ async function startServer() {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
 
+        const contentType = response.headers.get("content-type") || "";
+        if (!contentType.includes("application/json")) {
+          const text = await response.text();
+          if (text.includes("<!DOCTYPE") || text.includes("<html") || text.includes("The page c") || text.includes("Google Accounts")) {
+            throw new Error("Respon dari Google berupa halaman HTML (bukan JSON). Pastikan deployment Google Apps Script Anda (Web App) diatur dengan Akses: 'Anyone' (Siapa saja) dan Dijalankan sebagai: 'Me' (Diri Anda sendiri), dan Deploy/Terapkan ulang versi baru Anda.");
+          }
+          throw new Error("Respon server Google tidak berformat JSON valid. Layanan Google mengembalikan teks: " + text.substring(0, 150));
+        }
+
         const data = await response.json();
         res.json({ success: true, data });
       } else if (action === "post") {
@@ -52,6 +61,15 @@ async function startServer() {
         // when redirect: 'follow' (default).
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const contentType = response.headers.get("content-type") || "";
+        if (!contentType.includes("application/json")) {
+          const text = await response.text();
+          if (text.includes("<!DOCTYPE") || text.includes("<html") || text.includes("The page c") || text.includes("Google Accounts")) {
+            throw new Error("Respon dari Google berupa halaman HTML (bukan JSON). Pastikan deployment Google Apps Script Anda (Web App) diatur dengan Akses: 'Anyone' (Siapa saja) dan Dijalankan sebagai: 'Me' (Diri Anda sendiri), dan Deploy/Terapkan ulang versi baru Anda.");
+          }
+          throw new Error("Respon server Google tidak berformat JSON valid. Layanan Google mengembalikan teks: " + text.substring(0, 150));
         }
 
         const data = await response.json();

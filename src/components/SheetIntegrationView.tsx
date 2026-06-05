@@ -424,7 +424,7 @@ function updateAllLogs(sheet, logsList) {
               }`}>
                 {syncResult.success ? <CheckCircle className="size-4 shrink-0 text-emerald-400" /> : <AlertTriangle className="size-4 shrink-0 text-red-400" />}
                 <span>
-                  {syncResult.success ? "<b>Berhasil:</b> " : "<b>Gagal:</b> "}
+                  {syncResult.success ? <strong className="font-bold">Berhasil: </strong> : <strong className="font-bold">Gagal: </strong>}
                   {syncResult.message}
                 </span>
               </div>
