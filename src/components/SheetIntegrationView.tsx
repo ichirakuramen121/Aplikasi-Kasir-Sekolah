@@ -24,6 +24,56 @@ interface SheetIntegrationViewProps {
   onTestConnection: () => Promise<{ success: boolean; message: string }>;
 }
 
+export function getUrlExplanation(url: string): { type: "success" | "warn" | "error"; label: string; text: string } {
+  if (!url) {
+    return {
+      type: "warn",
+      label: "Mode Offline (Belum Terhubung)",
+      text: "Aplikasi berjalan offline. Data aman disimpan lokal di browser. Tempelkan URL Web App Google Apps Script (/exec) untuk mengaktifkan sinkronisasi cloud dua arah."
+    };
+  }
+  
+  const trimmed = url.trim();
+  
+  if (trimmed.includes("docs.google.com/spreadsheets")) {
+    return {
+      type: "error",
+      label: "Salah Tipe: Ini URL Google Spreadsheet",
+      text: "Anda memasukkan URL dokumen Google Spreadsheet. Sistem Kasir tidak bisa terhubung langsung menggunakan URL dokumen ini. Anda harus mendeploy kode Google Apps Script di kanan sebagai 'Web App', lalu menyalin URL Aplikasi Web (/exec) dan menempelnya di sini."
+    };
+  }
+  
+  if (trimmed.includes("script.google.com") && (trimmed.includes("/edit") || trimmed.includes("/home") || trimmed.includes("/d/"))) {
+    return {
+      type: "error",
+      label: "Salah Tipe: Ini URL Editor Apps Script",
+      text: "Anda memasukkan URL halaman editor koding / penulisan Apps Script. Dari editor tersebut, Anda harus mengeklik tombol biru 'Terapkan (Deploy)' -> 'Penerapan baru (New deployment)' -> pilih 'Aplikasi Web' -> Salin 'URL Aplikasi Web' yang berakhiran '/exec' dan tempel di sini."
+    };
+  }
+  
+  if (!trimmed.startsWith("https://script.google.com/macros/s/")) {
+    return {
+      type: "error",
+      label: "Format URL Tidak Dikenali",
+      text: "URL Web App yang valid dari Google Apps Script biasanya diawali dengan 'https://script.google.com/macros/s/...' Periksa kembali apakah tautan tersalin dengan lengkap."
+    };
+  }
+  
+  if (!trimmed.endsWith("/exec")) {
+    return {
+      type: "warn",
+      label: "Akhiran URL Tidak Sesuai (/exec )",
+      text: "Tautan Web App Google Apps Script biasanya harus berakhiran dengan '/exec'. Pastikan Anda mendeploy proyek sebagai 'Penerapan Baru' (bukan 'Uji Penerapan') dan menyalin seluruh alamat URL-nya."
+    };
+  }
+  
+  return {
+    type: "success",
+    label: "Format URL Tampak Sesuai!",
+    text: "Format URL sudah tepat. Silakan klik 'Simpan URL' lalu klik 'Uji Koneksi' untuk menguji dan menarik data database dari Google Sheet pertama kali."
+  };
+}
+
 export default function SheetIntegrationView({
   config,
   onUpdateConfig,
@@ -38,6 +88,8 @@ export default function SheetIntegrationView({
   const [syncResult, setSyncResult] = useState<{ success: boolean; message: string } | null>(null);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [testLoading, setTestLoading] = useState(false);
+
+  const urlExp = getUrlExplanation(sheetUrl);
 
   const handleSave = () => {
     onUpdateConfig({
@@ -75,24 +127,21 @@ export default function SheetIntegrationView({
   };
 
   const scriptCodeTemplate = `/**
- * GOOGLE APPS SCRIPT DATABASE ENDPOINT
+ * GOOGLE APPS SCRIPT DATABASE ENDPOINT (AUTOMATED)
  * -------------------------------------------------------------
  * Panduan Penggunaan:
- * 1. Buka Google Sheet baru, beri judul "Database Kasir Sekolah".
- * 2. Di Google Sheet tersebut, buat 4 sheet/tab baru:
- *    - Tab 1 beri nama: "Siswa"
- *    - Tab 2 beri nama: "Transaksi"
- *    - Tab 3 beri nama: "Biaya"
- *    - Tab 4 beri nama: "Logs"
- * 3. Masuk ke: Ekstensi > Apps Script.
- * 4. Hapus kode bawaan dan tempel kode lengkap di bawah ini.
- * 5. Klik Simpan (ikon disket), lalu klik "Terapkan" > "Penerapan Baru".
- * 6. Pilih Jenis: "Aplikasi Web" (Web App).
- * 7. Konfigurasi: 
+ * 1. Buka Google Sheet BARU yang kosong (beri judul bebas, misal "Database Kasir Sekolah").
+ *    *(TIPS: Anda TIDAK PERLU membuat tab/sheet sendiri, Apps Script ini secara otomatis
+ *    akan membuat tab "Siswa", "Transaksi", "Biaya", dan "Logs" beserta judul kolomnya).*
+ * 2. Masuk ke: Ekstensi > Apps Script.
+ * 3. Hapus kode bawaan dan tempel kode lengkap di bawah ini.
+ * 4. Klik Simpan (ikon disket), lalu klik "Terapkan" > "Penerapan Baru".
+ * 5. Pilih Jenis: "Aplikasi Web" (Web App).
+ * 6. Konfigurasi: 
  *    - Jalankan sebagai: "Diri Anda sendiri".
  *    - Siapa yang memiliki akses: "Siapa saja" (Anyone).
- * 8. Klik Terapkan, beri izin Otorisasi, lalu salin "URL Aplikasi Web" Anda.
- * 9. Tempelkan URL tersebut ke kolom integrasi di aplikasi kasir ini!
+ * 7. Klik Terapkan, beri izin Otorisasi, lalu salin "URL Aplikasi Web" Anda.
+ * 8. Tempelkan URL tersebut ke kolom integrasi di aplikasi kasir ini!
  */
 
 // Kosongkan atau masukkan ID Sheet bersangkutan jika tidak mempan (opsional)
@@ -104,6 +153,9 @@ function doGet(e) {
   var sheetTransaksi = getOrCreateSheet(ss, "Transaksi");
   var sheetBiaya = getOrCreateSheet(ss, "Biaya");
   var sheetLogs = getOrCreateSheet(ss, "Logs");
+  
+  // Bersihkan lembar default kosong bawaan Google Sheets jika ada
+  deleteDefaultSheet(ss);
   
   var siswaData = getRowsData(sheetSiswa);
   var transaksiData = getRowsData(sheetTransaksi);
@@ -127,6 +179,9 @@ function doPost(e) {
   var sheetTransaksi = getOrCreateSheet(ss, "Transaksi");
   var sheetBiaya = getOrCreateSheet(ss, "Biaya");
   var sheetLogs = getOrCreateSheet(ss, "Logs");
+  
+  // Bersihkan lembar default kosong bawaan Google Sheets jika ada
+  deleteDefaultSheet(ss);
   
   var postData = JSON.parse(e.postData.contents);
   var action = postData.action;
@@ -207,7 +262,10 @@ function getOrCreateSheet(ss, name) {
   var sheet = ss.getSheetByName(name);
   if (!sheet) {
     sheet = ss.insertSheet(name);
-    // Masukkan baris judul header berdasarkan skema
+  }
+  
+  if (sheet.getLastRow() === 0) {
+    // Masukkan baris judul header berdasarkan skema secara otomatis jika sheet baru/kosong
     if (name === "Siswa") {
       sheet.appendRow(["id", "nis", "nama", "kelas", "angkatan", "tagihanSpp", "emailOrangTua", "teleponOrangTua", "statusSppJson"]);
     } else if (name === "Transaksi") {
@@ -219,6 +277,23 @@ function getOrCreateSheet(ss, name) {
     }
   }
   return sheet;
+}
+
+function deleteDefaultSheet(ss) {
+  var sheets = ss.getSheets();
+  if (sheets.length > 1) {
+    for (var i = 0; i < sheets.length; i++) {
+      var name = sheets[i].getName();
+      // Deteksi sheet kosong default bawaan Spreadsheet baru seperti "Sheet1", "Sheet 1", "Lembar1", atau "Lembar 1"
+      if ((name === "Sheet1" || name === "Sheet 1" || name === "Lembar1" || name === "Lembar 1") && sheets[i].getLastRow() === 0) {
+        try {
+          ss.deleteSheet(sheets[i]);
+        } catch (e) {
+          // Abaikan jika gagal
+        }
+      }
+    }
+  }
 }
 
 function getRowsData(sheet) {
@@ -376,7 +451,7 @@ function updateAllLogs(sheet, logsList) {
         </div>
 
         {/* URL Inputs */}
-        <div className="space-y-1.5 pt-2">
+        <div className="space-y-3 pt-2">
           <label className="text-xs font-semibold text-slate-300 flex items-center gap-1">
             <Link2 className="size-4 text-slate-400" />
             URL Web App Google Apps Script
@@ -406,22 +481,66 @@ function updateAllLogs(sheet, logsList) {
               </button>
             </div>
           </div>
-          <p className="text-[10px] text-slate-400 leading-relaxed max-w-xl">
+
+          {/* Real-time URL format advisor card */}
+          <div className={`p-3 rounded-xl border flex gap-2.5 text-xs transition-all duration-300 leading-relaxed max-w-xl ${
+            urlExp.type === 'success' 
+              ? "bg-emerald-500/5 border-emerald-500/10 text-slate-300"
+              : urlExp.type === 'error'
+              ? "bg-red-500/10 border-red-500/20 text-red-300"
+              : "bg-slate-500/10 border-slate-500/10 text-slate-300"
+          }`}>
+            <div className="flex flex-col gap-0.5">
+              <div className="flex items-center gap-1.5 font-bold text-[10.5px] uppercase tracking-wider">
+                <span className={`inline-block size-2 rounded-full ${
+                  urlExp.type === 'success' ? "bg-emerald-450 animate-pulse" : urlExp.type === 'error' ? "bg-red-400 animate-pulse" : "bg-amber-400"
+                }`} />
+                {urlExp.label}
+              </div>
+              <p className="text-[11px] text-slate-300">{urlExp.text}</p>
+            </div>
+          </div>
+
+          <p className="text-[10px] text-slate-400 leading-relaxed max-w-xl pt-1">
             * Apabila dikosongkan, aplikasi akan berjalan dalam mode offline (menyimpan data di memori browser lokal/localStorage). Integrasi dapat diisi kapan saja setelah script dideploy.
           </p>
 
           {testResult && (
-            <div className={`p-3.5 rounded-xl border flex gap-2.5 text-xs leading-relaxed max-w-xl animate-fade-in ${
+            <div className={`p-4 rounded-xl border flex gap-3 text-xs leading-relaxed max-w-xl animate-fade-in ${
               testResult.success 
                 ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-300" 
                 : "bg-red-500/10 border-red-500/20 text-red-300"
             }`}>
-              {testResult.success ? <CheckCircle className="size-4 shrink-0 text-emerald-400" /> : <AlertTriangle className="size-4 shrink-0 text-red-405" />}
-              <div className="flex flex-col gap-1">
-                <span className="font-bold uppercase tracking-wider text-[10px]">
+              {testResult.success ? <CheckCircle className="size-4 shrink-0 text-emerald-400 mt-0.5" /> : <AlertTriangle className="size-4 shrink-0 text-red-405 mt-0.5" />}
+              <div className="flex flex-col gap-1 w-full">
+                <span className="font-bold uppercase tracking-wider text-[10.5px]">
                   {testResult.success ? "Koneksi Berhasil" : "Koneksi Gagal"}
                 </span>
                 <span>{testResult.message}</span>
+
+                {!testResult.success && (
+                  <div className="mt-3 pt-3 border-t border-red-500/15 text-red-300 text-[11px] space-y-2">
+                    <p className="font-bold uppercase tracking-wider text-[9.5px] text-red-200">Panduan Mengatasi Error Koneksi Google Sheet:</p>
+                    <ul className="list-decimal pl-4 space-y-1.5 text-slate-300 leading-relaxed">
+                      <li>
+                        <strong className="text-red-200">Sistem Otomatis:</strong> Aplikasi ini secara otomatis mendeteksi dan membuat seluruh sheet tab (<span className="font-mono bg-white/10 px-1 py-0.5 rounded text-white font-bold">Siswa</span>, <span className="font-mono bg-white/10 px-1 py-0.5 rounded text-white font-bold">Transaksi</span>, <span className="font-mono bg-white/10 px-1 py-0.5 rounded text-white font-bold">Biaya</span>, dan <span className="font-mono bg-white/10 px-1 py-0.5 rounded text-white font-bold">Logs</span>). Anda tidak perlu membuatnya sendiri. Apabila sebelumnya Anda membuat tab manual dengan nama/kapitalisasi yang salah, hapus saja tab tersebut dan biarkan script ini yang membuatnya secara otomatis.
+                      </li>
+                      <li>
+                        <strong className="text-red-200">Pastikan Akses "Siapa Saja":</strong> Masuk kembali ke editor Apps Script Anda, klik tombol biru <strong>Terapkan (Deploy) &gt; Kelola Penerapan (Manage Deployments) &gt; Edit (ikon pensil)</strong>. Pastikan setelan diisi:
+                        <ul className="list-disc pl-4 mt-1 text-[10px] text-slate-400">
+                          <li>Jalankan sebagai (Execute as): <strong>Diri Anda sendiri (Me / akun Google Anda)</strong></li>
+                          <li>Siapa yang memiliki akses (Who has access): <strong>Siapa Saja (Anyone / Anyone even anonymous)</strong></li>
+                        </ul>
+                      </li>
+                      <li>
+                        <strong className="text-red-200">Gunakan Versi Baru:</strong> Di Google Apps Script, setiap ada perubahan konfigurasi atau kode, Anda <strong className="text-red-200">WAJIB</strong> memilih opsi <strong>"Versi: Baru" (New Version)</strong> dalam dropdown versi saat menerapkan ulang agar perubahan tersimpan dan link update bekerja.
+                      </li>
+                      <li>
+                        <strong className="text-red-200">Gunakan URL Aplikasi Web, bukan URL Editor:</strong> Pastikan tautan yang Anda simpan di atas berakhiran <span className="font-mono bg-white/10 px-1 text-white">/exec</span>, bukan <span className="font-mono bg-white/10 px-1 text-white">/edit</span> atau URL Google Spreadsheet.
+                      </li>
+                    </ul>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -478,10 +597,10 @@ function updateAllLogs(sheet, logsList) {
 
           <ol className="space-y-4 text-xs text-slate-200 list-decimal pl-4">
             <li className="leading-relaxed">
-              Buat <b>Google Sheet baru</b>, buat tab bernama <b>"Siswa"</b> dan <b>"Transaksi"</b> pada bagian sheet name bawah.
+              Buat sebuah <b>Google Sheet BARU yang kosong</b>. *(Anda <b>TIDAK PERLU</b> repot membuat tab Siswa/Transaksi atau mengetik judul kolom sendiri secara manual. Script di samping akan <b>membuat semua tab & kolom secara 100% otomatis</b> untuk mencegah kesalahan ketik).*
             </li>
             <li className="leading-relaxed">
-              Klik menu <b>Ekstensi</b> {`>`} <b>Apps Script</b> dari menu atas.
+              Klik menu <b>Ekstensi</b> {`>`} <b>Apps Script</b> dari menu bagian atas spreadsheet baru tersebut.
             </li>
             <li className="leading-relaxed">
               Salin kode template Apps Script di samping ini (Gunakan tombol Salin), lalu tempelkan sepenuhnya di editor Apps Script Anda.
