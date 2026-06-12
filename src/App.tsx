@@ -167,6 +167,89 @@ export default function App() {
   };
 
   // --- GOOGLE SHEETS CONNECTION & SYNC ---
+  const executeSheetsRequest = async (
+    url: string,
+    action: 'get' | 'post',
+    payload?: any
+  ): Promise<any> => {
+    // 1. Coba lewat proxy local/Express (/api/proxy) terlebih dahulu
+    try {
+      const response = await fetch("/api/proxy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url: url,
+          action: action,
+          payload: payload
+        })
+      });
+
+      if (response.ok) {
+        const text = await response.text();
+        try {
+          const json = JSON.parse(text);
+          // Bila dibungkus proxy server.ts: { success: true, data: ... } atau memiliki success: true langsung
+          if (json && (json.success === true || json.siswa || json.transaksi || json.data)) {
+            return json;
+          }
+        } catch (e) {
+          console.warn("Proxy JSON parse failed, falling back to direct client fetch", e);
+        }
+      } else {
+        console.warn(`Proxy server returned non-200 status (${response.status}), falling back to direct fetch.`);
+      }
+    } catch (proxyError) {
+      console.warn("Proxy request failed, falling back to direct client fetch", proxyError);
+    }
+
+    // 2. Fallback: Request langsung (CORS CLIENT-SIDE DIRECT FETCH) dari browser
+    console.log(`[CORS Fallback] Melakukan koneksi langsung ke Google Apps Script: ${url}`);
+    
+    if (action === "get") {
+      const response = await fetch(url, {
+        method: "GET"
+      });
+      if (!response.ok) {
+        throw new Error(`Koneksi langsung gagal dengan kode HTTP status: ${response.status}`);
+      }
+      const text = await response.text();
+      try {
+        const parsed = JSON.parse(text);
+        // Samakan format dengan proxy `{ success: true, data: content }`
+        return { success: true, data: parsed };
+      } catch (parseErr) {
+        if (text.includes("<!DOCTYPE") || text.includes("<html") || text.includes("The page c") || text.includes("Google Accounts")) {
+          throw new Error("Google Apps Script mengembalikan halaman HTML/Login. Pastikan deployment Google Apps Script Anda diset ke Akses: 'Siapa saja (Anyone)' dan Dijalankan sebagai: 'Saya sendiri' (Me/akun Google Anda).");
+        }
+        throw new Error("Respon langsung dari Google Sheets Apps Script tidak berformat JSON valid.");
+      }
+    } else {
+      // POST request
+      // Gunakan Content-Type: text/plain agar browser menganggapnya sebagai "simple request"
+      // untuk mencegah preflight OPTIONS request CORS yang sering gagal di server Apps Script
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "text/plain"
+        },
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) {
+        throw new Error(`Koneksi langsung gagal dengan kode HTTP status: ${response.status}`);
+      }
+      const text = await response.text();
+      try {
+        const parsed = JSON.parse(text);
+        return parsed; // Apps script POST mengembalikan { success: true, message: ... }
+      } catch (parseErr) {
+        if (text.includes("<!DOCTYPE") || text.includes("<html") || text.includes("The page c") || text.includes("Google Accounts")) {
+          throw new Error("Google Apps Script mengembalikan halaman HTML/Login. Pastikan deployment Google Apps Script Anda diset ke Akses: 'Siapa saja (Anyone)' dan Dijalankan sebagai: 'Saya sendiri' (Me/akun Google Anda).");
+        }
+        throw new Error("Respon pasca-kirim langsung dari Google Sheets Apps Script tidak berformat JSON valid.");
+      }
+    }
+  };
+
   const testSheetConnection = async (
     url: string = config.sheetUrl, 
     currentSiswa = siswaList, 
@@ -178,25 +261,7 @@ export default function App() {
     setConnectionStatus('testing');
     
     try {
-      const response = await fetch("/api/proxy", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          url: url,
-          action: "get"
-        })
-      });
-
-      const text = await response.text();
-      let body: any;
-      try {
-        body = JSON.parse(text);
-      } catch (parseErr) {
-        if (text.includes("<!DOCTYPE") || text.includes("<html") || text.includes("The page c") || text.includes("Google Accounts")) {
-          throw new Error("Proxy Google Sheet mengembalikan halaman HTML. Ini biasanya terjadi karena setelan deployment Google Apps Script belum diset ke Akses: 'Siapa saja (Anyone)', atau menggunakan URL yang salah.");
-        }
-        throw new Error("Respon server proxy tidak berformat JSON valid.");
-      }
+      const body = await executeSheetsRequest(url, "get");
 
       if (body.success && body.data) {
         setConnectionStatus('connected');
@@ -235,7 +300,7 @@ export default function App() {
     } catch (err: any) {
       console.error("[Sheets Sync error]", err);
       setConnectionStatus('disconnected');
-      return { success: false, message: err.message || "Gagal menghubungkan ke proxy Google API." };
+      return { success: false, message: err.message || "Gagal menghubungkan ke Google Apps Script." };
     }
   };
 
@@ -246,32 +311,13 @@ export default function App() {
     }
 
     try {
-      const response = await fetch("/api/proxy", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          url: config.sheetUrl,
-          action: "post",
-          payload: {
-            action: "sync_all",
-            siswa: siswaList,
-            transaksi: transaksiList,
-            biaya: biayaList,
-            logs: notificationLogs
-          } // Sync both students and other models
-        })
+      const body = await executeSheetsRequest(config.sheetUrl, "post", {
+        action: "sync_all",
+        siswa: siswaList,
+        transaksi: transaksiList,
+        biaya: biayaList,
+        logs: notificationLogs
       });
-
-      const text = await response.text();
-      let body: any;
-      try {
-        body = JSON.parse(text);
-      } catch (parseErr) {
-        if (text.includes("<!DOCTYPE") || text.includes("<html") || text.includes("The page c") || text.includes("Google Accounts")) {
-          throw new Error("Proxy Google Sheet mengembalikan halaman HTML. Ini biasanya terjadi karena setelan deployment Google Apps Script belum diset ke Akses: 'Siapa saja (Anyone)', atau menggunakan URL yang salah.");
-        }
-        throw new Error("Respon server proxy tidak berformat JSON valid.");
-      }
 
       if (body.success) {
         testSheetConnection(); // Refresh
@@ -280,7 +326,7 @@ export default function App() {
         return { success: false, message: body.error || "Terjadi kesalahan respon server Google Sheets." };
       }
     } catch (err: any) {
-      return { success: false, message: err.message || "Gagal menghubungkan ke proxy Google API." };
+      return { success: false, message: err.message || "Gagal menyelaraskan data ke Google Sheet." };
     }
   };
 
@@ -330,35 +376,21 @@ export default function App() {
     // 4. Sync transaction row to Sheets Web App in background
     if (config.sheetUrl) {
       console.log("[Sheets Sync] Syncing row transaction in background...");
-      try {
-        const response = await fetch("/api/proxy", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            url: config.sheetUrl,
-            action: "post",
-            payload: {
-              action: "save_transaction",
-              transaction: newTransaction
-            }
-          })
-        });
-        const text = await response.text();
-        let body: any;
-        try {
-          body = JSON.parse(text);
-        } catch (parseErr) {
-          throw new Error("Respon server proxy tidak berformat JSON valid.");
-        }
+      executeSheetsRequest(config.sheetUrl, "post", {
+        action: "save_transaction",
+        transaction: newTransaction
+      })
+      .then((body) => {
         if (body.success) {
           console.log("[Sheets Sync] Succesfully apppended row to Sheets!");
           setConnectionStatus('connected');
         } else {
           console.warn("[Sheets Sync fail]", body.error);
         }
-      } catch (err) {
+      })
+      .catch((err) => {
         console.warn("[Sheets Sync error]", err);
-      }
+      });
     }
   };
 
@@ -368,17 +400,9 @@ export default function App() {
     
     // Auto sync back to Google Sheets if connected
     if (config.sheetUrl && connectionStatus === 'connected') {
-      fetch("/api/proxy", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          url: config.sheetUrl,
-          action: "post",
-          payload: {
-            action: "sync_all",
-            siswa: newList
-          }
-        })
+      executeSheetsRequest(config.sheetUrl, "post", {
+        action: "sync_all",
+        siswa: newList
       }).catch(e => console.error("Auto sheet siswa update failed", e));
     }
   };
@@ -405,17 +429,9 @@ export default function App() {
     
     // Auto sync back to Google Sheets if connected
     if (config.sheetUrl && connectionStatus === 'connected') {
-      fetch("/api/proxy", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          url: config.sheetUrl,
-          action: "post",
-          payload: {
-            action: "sync_biaya",
-            biaya: newList
-          }
-        })
+      executeSheetsRequest(config.sheetUrl, "post", {
+        action: "sync_biaya",
+        biaya: newList
       }).catch(e => console.error("Auto sheet biaya update failed", e));
     }
   };
@@ -442,17 +458,9 @@ export default function App() {
 
     // Sync log back to Google Sheets if connected
     if (config.sheetUrl && connectionStatus === 'connected') {
-      fetch("/api/proxy", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          url: config.sheetUrl,
-          action: "post",
-          payload: {
-            action: "save_log",
-            log: newLog
-          }
-        })
+      executeSheetsRequest(config.sheetUrl, "post", {
+        action: "save_log",
+        log: newLog
       }).catch(e => console.error("Auto sheet log update failed", e));
     }
   };
