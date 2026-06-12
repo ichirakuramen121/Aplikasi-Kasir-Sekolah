@@ -79,7 +79,7 @@ async function startServer() {
       }
     } catch (error: any) {
       console.error("[Proxy Error]:", error);
-      res.status(500).json({
+      res.json({
         success: false,
         error: error.message || "Failed to communicate with Google Sheets via Apps Script."
       });

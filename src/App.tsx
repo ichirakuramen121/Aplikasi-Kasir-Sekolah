@@ -187,7 +187,17 @@ export default function App() {
         })
       });
 
-      const body = await response.json();
+      const text = await response.text();
+      let body: any;
+      try {
+        body = JSON.parse(text);
+      } catch (parseErr) {
+        if (text.includes("<!DOCTYPE") || text.includes("<html") || text.includes("The page c") || text.includes("Google Accounts")) {
+          throw new Error("Proxy Google Sheet mengembalikan halaman HTML. Ini biasanya terjadi karena setelan deployment Google Apps Script belum diset ke Akses: 'Siapa saja (Anyone)', atau menggunakan URL yang salah.");
+        }
+        throw new Error("Respon server proxy tidak berformat JSON valid.");
+      }
+
       if (body.success && body.data) {
         setConnectionStatus('connected');
         console.log("[Sheets API Sync] Connected successfully!");
@@ -252,7 +262,17 @@ export default function App() {
         })
       });
 
-      const body = await response.json();
+      const text = await response.text();
+      let body: any;
+      try {
+        body = JSON.parse(text);
+      } catch (parseErr) {
+        if (text.includes("<!DOCTYPE") || text.includes("<html") || text.includes("The page c") || text.includes("Google Accounts")) {
+          throw new Error("Proxy Google Sheet mengembalikan halaman HTML. Ini biasanya terjadi karena setelan deployment Google Apps Script belum diset ke Akses: 'Siapa saja (Anyone)', atau menggunakan URL yang salah.");
+        }
+        throw new Error("Respon server proxy tidak berformat JSON valid.");
+      }
+
       if (body.success) {
         testSheetConnection(); // Refresh
         return { success: true, message: "Seluruh data siswa, transaksi, biaya, dan log notifikasi berhasil diselaraskan ke Google Sheets!" };
@@ -323,7 +343,13 @@ export default function App() {
             }
           })
         });
-        const body = await response.json();
+        const text = await response.text();
+        let body: any;
+        try {
+          body = JSON.parse(text);
+        } catch (parseErr) {
+          throw new Error("Respon server proxy tidak berformat JSON valid.");
+        }
         if (body.success) {
           console.log("[Sheets Sync] Succesfully apppended row to Sheets!");
           setConnectionStatus('connected');
