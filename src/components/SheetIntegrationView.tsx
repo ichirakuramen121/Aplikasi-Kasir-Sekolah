@@ -312,9 +312,9 @@ function getRowsData(sheet) {
       var cellValue = row[j];
       
       // Khusus untuk field dictionary status SPP di kolom Siswa
-      if (headerName === "statusSppJson" && cellValue) {
+      if (headerName === "statusSppJson") {
         try {
-          obj["statusSpp"] = JSON.parse(cellValue);
+          obj["statusSpp"] = cellValue ? JSON.parse(cellValue) : {};
         } catch (err) {
           obj["statusSpp"] = {};
         }

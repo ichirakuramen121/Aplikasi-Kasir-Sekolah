@@ -57,7 +57,10 @@ export default function DashboardView({
 
   // Calculate unpaid students count for SPP this month
   const totalSiswa = siswaList.length;
-  const siswaLunasBulanIni = siswaList.filter(s => s.statusSpp[currentMonthKey] === "Lunas").length;
+  const siswaLunasBulanIni = siswaList.filter(s => {
+    const sSpp = s.statusSpp || {};
+    return sSpp[currentMonthKey] === "Lunas";
+  }).length;
   const siswaBelumBulanIni = totalSiswa - siswaLunasBulanIni;
   
   // Class options - dynamically extracted from actual students list, or fallback if empty
@@ -113,7 +116,10 @@ export default function DashboardView({
     ? siswaList 
     : siswaList.filter(s => s.kelas === selectedClassFilter);
 
-  const filteredLunas = filteredStudents.filter(s => s.statusSpp[currentMonthKey] === "Lunas").length;
+  const filteredLunas = filteredStudents.filter(s => {
+    const sSpp = s.statusSpp || {};
+    return sSpp[currentMonthKey] === "Lunas";
+  }).length;
   const filteredTotal = filteredStudents.length;
   const filteredBelumPay = filteredTotal - filteredLunas;
   const matchPercentage = filteredTotal > 0 ? Math.round((filteredLunas / filteredTotal) * 100) : 0;
@@ -441,48 +447,57 @@ export default function DashboardView({
 
           {/* Unpaid students list with quick shortcut icon */}
           {filteredTotal > 0 && (
-            filteredStudents.filter(s => s.statusSpp[currentMonthKey] !== "Lunas").length > 0 ? (
-              <div className="mt-4 border-t border-white/10 pt-4 space-y-2 text-left">
-                <span className="text-xs font-bold text-amber-500 uppercase tracking-wider block">
-                  Siswa Belum Bayar Bulan Ini ({filteredStudents.filter(s => s.statusSpp[currentMonthKey] !== "Lunas").length})
-                </span>
-                <div className="max-h-56 overflow-y-auto space-y-2 pr-1 scrollbar-thin">
-                  {filteredStudents
-                    .filter(s => s.statusSpp[currentMonthKey] !== "Lunas")
-                    .map((s) => {
-                      const status = s.statusSpp[currentMonthKey] || "Belum_Bayar";
-                      const isPartial = typeof status === "string" && status.startsWith("Kurang:");
-                      const sisaStr = isPartial ? ` (Kurang ${formatRupiah(Number(status.split(":")[1]))})` : "";
-                      
-                      return (
-                        <div 
-                          key={s.id} 
-                          className="flex items-center justify-between p-2.5 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 transition-colors"
-                        >
-                          <div className="min-w-0 pr-2">
-                            <span className="text-xs font-bold text-white block truncate">{s.nama}</span>
-                            <span className="text-[10px] text-slate-400 font-mono block">
-                              {s.nis} • {s.kelas} {isPartial && <span className="text-amber-400 font-semibold">{sisaStr}</span>}
-                            </span>
-                          </div>
-                          <button
-                            onClick={() => onNavigateToPayment(s.id)}
-                            type="button"
-                            title={`Proses Bayar SPP ${s.nama}`}
-                            className="p-1.5 shrink-0 rounded-lg text-blue-400 hover:text-white bg-blue-500/10 hover:bg-blue-500 border border-blue-500/20 active:scale-95 transition-all cursor-pointer"
+            (() => {
+              const unpaid = filteredStudents.filter(s => {
+                const sSpp = s.statusSpp || {};
+                return sSpp[currentMonthKey] !== "Lunas";
+              });
+              if (unpaid.length > 0) {
+                return (
+                  <div className="mt-4 border-t border-white/10 pt-4 space-y-2 text-left">
+                    <span className="text-xs font-bold text-amber-500 uppercase tracking-wider block">
+                      Siswa Belum Bayar Bulan Ini ({unpaid.length})
+                    </span>
+                    <div className="max-h-56 overflow-y-auto space-y-2 pr-1 scrollbar-thin">
+                      {unpaid.map((s) => {
+                        const sSpp = s.statusSpp || {};
+                        const status = sSpp[currentMonthKey] || "Belum_Bayar";
+                        const isPartial = typeof status === "string" && status.startsWith("Kurang:");
+                        const sisaStr = isPartial ? ` (Kurang ${formatRupiah(Number(status.split(":")[1]))})` : "";
+                        
+                        return (
+                          <div 
+                            key={s.id} 
+                            className="flex items-center justify-between p-2.5 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 transition-colors"
                           >
-                            <ChevronRight className="size-3.5" strokeWidth={2.5} />
-                          </button>
-                        </div>
-                      );
-                    })}
-                </div>
-              </div>
-            ) : (
-              <div className="mt-4 border-t border-white/10 pt-4 text-center">
-                <span className="text-xs text-emerald-400 font-semibold">🎉 Semua siswa di kelas ini lunas bulan ini!</span>
-              </div>
-            )
+                            <div className="min-w-0 pr-2">
+                              <span className="text-xs font-bold text-white block truncate">{s.nama}</span>
+                              <span className="text-[10px] text-slate-400 font-mono block">
+                                {s.nis} • {s.kelas} {isPartial && <span className="text-amber-400 font-semibold">{sisaStr}</span>}
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => onNavigateToPayment(s.id)}
+                              type="button"
+                              title={`Proses Bayar SPP ${s.nama}`}
+                              className="p-1.5 shrink-0 rounded-lg text-blue-400 hover:text-white bg-blue-500/10 hover:bg-blue-500 border border-blue-500/20 active:scale-95 transition-all cursor-pointer"
+                            >
+                              <ChevronRight className="size-3.5" strokeWidth={2.5} />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              } else {
+                return (
+                  <div className="mt-4 border-t border-white/10 pt-4 text-center">
+                    <span className="text-xs text-emerald-400 font-semibold">🎉 Semua siswa di kelas ini lunas bulan ini!</span>
+                  </div>
+                );
+              }
+            })()
           )}
 
           <p className="text-[10px] text-slate-450 mt-4 leading-relaxed italic text-center font-sans">

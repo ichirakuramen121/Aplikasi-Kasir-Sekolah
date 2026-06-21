@@ -193,9 +193,10 @@ export default function NotificationView({
     siswaList.forEach(s => {
       // Find SPP months that are "Belum_Bayar" up to current period month (e.g., 2026-05 or older)
       const unpaidMonths: string[] = [];
-      Object.keys(s.statusSpp).forEach(monthKey => {
+      const sSpp = s.statusSpp || {};
+      Object.keys(sSpp).forEach(monthKey => {
         // Simple comparison: Month keys <= 2026-05 are considered current or overdue if unpaid
-        if (s.statusSpp[monthKey] === "Belum_Bayar" && monthKey <= currentYearMonth) {
+        if (sSpp[monthKey] === "Belum_Bayar" && monthKey <= currentYearMonth) {
           unpaidMonths.push(monthKey);
         }
       });

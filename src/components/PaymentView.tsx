@@ -95,7 +95,8 @@ export default function PaymentView({
   // Calculate total historical arrears (tunggakan)
   const tunggakanList = selectedSiswa
     ? DAFTAR_BULAN.map(m => {
-        const status = selectedSiswa.statusSpp[m.key] || "Belum_Bayar";
+        const sSpp = selectedSiswa.statusSpp || {};
+        const status = sSpp[m.key] || "Belum_Bayar";
         if (status === "Belum_Bayar") {
           return { key: m.key, label: m.label, sisa: selectedSiswa.tagihanSpp, type: "Belum_Bayar" };
         } else if (typeof status === "string" && status.startsWith("Kurang:")) {
@@ -116,14 +117,15 @@ export default function PaymentView({
   // React to change in selectedSiswa or JenisPembayaran
   useEffect(() => {
     if (selectedSiswa) {
+      const sSpp = selectedSiswa.statusSpp || {};
       if (jenisPembayaran === "SPP") {
         // Find first unpaid month as default selection
-        const unpaidMonth = DAFTAR_BULAN.find(m => selectedSiswa.statusSpp[m.key] !== "Lunas");
+        const unpaidMonth = DAFTAR_BULAN.find(m => sSpp[m.key] !== "Lunas");
         if (unpaidMonth) {
           setBulanCovered(unpaidMonth.key);
           setKeterangan(`Pembayaran SPP Bulan ${unpaidMonth.label}`);
           
-          const statusVal = selectedSiswa.statusSpp[unpaidMonth.key] || "Belum_Bayar";
+          const statusVal = sSpp[unpaidMonth.key] || "Belum_Bayar";
           if (statusVal.startsWith("Kurang:")) {
             const sisa = Number(statusVal.split(":")[1]) || selectedSiswa.tagihanSpp;
             setJumlah(sisa);
@@ -200,8 +202,9 @@ export default function PaymentView({
     
     // Auto multiply amount accounting for partial payments
     let totalAmount = 0;
+    const sSpp = selectedSiswa.statusSpp || {};
     nextList.forEach((key) => {
-      const statusVal = selectedSiswa.statusSpp[key] || "Belum_Bayar";
+      const statusVal = sSpp[key] || "Belum_Bayar";
       if (statusVal.startsWith("Kurang:")) {
         totalAmount += Number(statusVal.split(":")[1]) || selectedSiswa.tagihanSpp;
       } else {
@@ -409,7 +412,8 @@ export default function PaymentView({
               {/* SPP Grid Matrix */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {DAFTAR_BULAN.map((m) => {
-                  const status = selectedSiswa.statusSpp[m.key] || "Belum_Bayar";
+                  const sSpp = selectedSiswa.statusSpp || {};
+                  const status = sSpp[m.key] || "Belum_Bayar";
                   const isPaid = status === "Lunas";
                   const isPartial = typeof status === "string" && status.startsWith("Kurang:");
                   const sisaAmount = isPartial ? Number(status.split(":")[1]) || 0 : 0;
@@ -569,16 +573,20 @@ export default function PaymentView({
                     }}
                     className="w-full px-3.5 py-2.5 bg-white/5 border border-white/10 text-white font-semibold rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                   >
-                    {DAFTAR_BULAN.map((m) => (
-                      <option 
-                        key={m.key} 
-                        value={m.key}
-                        disabled={selectedSiswa?.statusSpp[m.key] === "Lunas"}
-                        className="bg-slate-900 border-none select-none text-white"
-                      >
-                        {m.label} {selectedSiswa?.statusSpp[m.key] === "Lunas" ? " (Lunas)" : ""}
-                      </option>
-                    ))}
+                    {DAFTAR_BULAN.map((m) => {
+                      const sSpp = selectedSiswa?.statusSpp || {};
+                      const isLunas = sSpp[m.key] === "Lunas";
+                      return (
+                        <option 
+                          key={m.key} 
+                          value={m.key}
+                          disabled={isLunas}
+                          className="bg-slate-900 border-none select-none text-white"
+                        >
+                          {m.label} {isLunas ? " (Lunas)" : ""}
+                        </option>
+                      );
+                    })}
                   </select>
 
                   {/* Multi-month list visualizer badges */}

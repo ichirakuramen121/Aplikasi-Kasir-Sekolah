@@ -29,6 +29,7 @@ interface StudentsViewProps {
   siswaList: Siswa[];
   config?: AppConfig;
   onAddSiswa: (siswa: Siswa) => void;
+  onAddSiswaBatch?: (siswaArray: Siswa[]) => void;
   onEditSiswa: (siswa: Siswa) => void;
   onDeleteSiswa: (id: string) => void;
   onNavigateToPayment: (siswaId: string) => void;
@@ -38,6 +39,7 @@ export default function StudentsView({
   siswaList, 
   config,
   onAddSiswa, 
+  onAddSiswaBatch,
   onEditSiswa, 
   onDeleteSiswa,
   onNavigateToPayment
@@ -213,9 +215,11 @@ export default function StudentsView({
       defaultStatusSpp[m.key] = "Belum_Bayar";
     });
 
+    const newSiswaList: Siswa[] = [];
+
     csvPreviewList.forEach((parsed, index) => {
       // Check duplicate
-      const exists = siswaList.some(s => s.nis === parsed.nis);
+      const exists = siswaList.some(s => s.nis === parsed.nis) || newSiswaList.some(s => s.nis === parsed.nis);
       if (exists) {
         duplicateCount++;
         return;
@@ -233,9 +237,17 @@ export default function StudentsView({
         teleponOrangTua: parsed.teleponOrangTua || "-"
       };
 
-      onAddSiswa(newSiswa);
+      newSiswaList.push(newSiswa);
       addedCount++;
     });
+
+    if (newSiswaList.length > 0) {
+      if (onAddSiswaBatch) {
+        onAddSiswaBatch(newSiswaList);
+      } else {
+        newSiswaList.forEach(s => onAddSiswa(s));
+      }
+    }
 
     alert(`Proses impor selesai! Berhasil menambahkan ${addedCount} siswa baru ke sistem.${duplicateCount > 0 ? ` Terlewati ${duplicateCount} baris dDuplikasi NIS.` : ""}`);
     
@@ -250,11 +262,12 @@ export default function StudentsView({
                           s.nis.includes(searchQuery);
     const matchesClass = selectedClassFilter === "Semua" || s.kelas === selectedClassFilter;
     
+    const sSpp = s.statusSpp || {};
     let matchesStatus = true;
     if (statusSppFilter === "Lunas") {
-      matchesStatus = s.statusSpp[currentMonthKey] === "Lunas";
+      matchesStatus = sSpp[currentMonthKey] === "Lunas";
     } else if (statusSppFilter === "Belum_Lunas") {
-      matchesStatus = s.statusSpp[currentMonthKey] !== "Lunas";
+      matchesStatus = sSpp[currentMonthKey] !== "Lunas";
     }
 
     return matchesSearch && matchesClass && matchesStatus;
@@ -279,7 +292,8 @@ export default function StudentsView({
     ];
 
     const rows = filteredStudents.map(s => {
-      const status = s.statusSpp[currentMonthKey] || "Belum_Bayar";
+      const sSpp = s.statusSpp || {};
+      const status = sSpp[currentMonthKey] || "Belum_Bayar";
       const isLunas = status === "Lunas";
       const isKurang = typeof status === "string" && status.startsWith("Kurang:");
       let statusStr = "Belum Lunas";
@@ -365,7 +379,10 @@ export default function StudentsView({
     doc.setFontSize(8);
     doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
     const totalSiswaCount = filteredStudents.length;
-    const lunasCount = filteredStudents.filter(s => s.statusSpp[currentMonthKey] === "Lunas").length;
+    const lunasCount = filteredStudents.filter(s => {
+      const sSpp = s.statusSpp || {};
+      return sSpp[currentMonthKey] === "Lunas";
+    }).length;
     const belumLunasCount = totalSiswaCount - lunasCount;
 
     doc.text(`TOTAL TAMPIL: ${totalSiswaCount} SISWA`, 20, 44);
@@ -380,7 +397,8 @@ export default function StudentsView({
     ];
 
     const tableBody = filteredStudents.map((s, idx) => {
-      const statusValue = s.statusSpp[currentMonthKey] || "Belum_Bayar";
+      const sSpp = s.statusSpp || {};
+      const statusValue = sSpp[currentMonthKey] || "Belum_Bayar";
       const isLunas = statusValue === "Lunas";
       const isKurang = typeof statusValue === "string" && statusValue.startsWith("Kurang:");
       let sStr = "Belum Lunas";
@@ -808,7 +826,8 @@ export default function StudentsView({
                         {highlightText(s.nama, searchQuery, `sis-nama-${s.id}`)}
                       </span>
                       {(() => {
-                        const status = s.statusSpp[currentMonthKey] || "Belum_Bayar";
+                        const sSpp = s.statusSpp || {};
+                        const status = sSpp[currentMonthKey] || "Belum_Bayar";
                         const isLunas = status === "Lunas";
                         const isKurang = typeof status === "string" && status.startsWith("Kurang:");
                         if (isLunas) {
@@ -835,11 +854,12 @@ export default function StudentsView({
                       {(() => {
                         const today = new Date();
                         const dayOfMonth = today.getDate();
-                        const status = s.statusSpp[currentMonthKey] || "Belum_Bayar";
+                        const sSpp = s.statusSpp || {};
+                        const status = sSpp[currentMonthKey] || "Belum_Bayar";
                         const isLunas = status === "Lunas";
                         
                         const previousMonths = DAFTAR_BULAN.filter(m => m.key < currentMonthKey);
-                        const hasUnpaidPrevious = previousMonths.some(m => s.statusSpp[m.key] !== "Lunas");
+                        const hasUnpaidPrevious = previousMonths.some(m => sSpp[m.key] !== "Lunas");
                         const isPastDueCurrent = !isLunas;
                         const hasUnpaidSpp = hasUnpaidPrevious || isPastDueCurrent;
 

@@ -412,6 +412,11 @@ export default function App() {
     saveSiswaMaster(updated);
   };
 
+  const handleAddSiswaBatch = (newSiswaArray: Siswa[]) => {
+    const updated = [...siswaList, ...newSiswaArray];
+    saveSiswaMaster(updated);
+  };
+
   const handleEditSiswa = (editedSiswa: Siswa) => {
     const updated = siswaList.map((s) => s.id === editedSiswa.id ? editedSiswa : s);
     saveSiswaMaster(updated);
@@ -778,6 +783,7 @@ export default function App() {
               siswaList={siswaList}
               config={config}
               onAddSiswa={handleAddSiswa}
+              onAddSiswaBatch={handleAddSiswaBatch}
               onEditSiswa={handleEditSiswa}
               onDeleteSiswa={handleDeleteSiswa}
               onNavigateToPayment={handleNavigateToPayment}
