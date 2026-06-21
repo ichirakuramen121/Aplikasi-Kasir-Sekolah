@@ -258,9 +258,14 @@ export default function StudentsView({
   };
 
   const filteredStudents = siswaList.filter(s => {
-    const matchesSearch = s.nama.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          s.nis.includes(searchQuery);
-    const matchesClass = selectedClassFilter === "Semua" || s.kelas === selectedClassFilter;
+    if (!s) return false;
+    const nameStr = s.nama ? String(s.nama) : "";
+    const nisStr = s.nis ? String(s.nis) : "";
+    const searchVal = searchQuery.toLowerCase();
+    
+    const matchesSearch = nameStr.toLowerCase().includes(searchVal) || 
+                          nisStr.includes(searchQuery);
+    const matchesClass = selectedClassFilter === "Semua" || String(s.kelas || "") === selectedClassFilter;
     
     const sSpp = s.statusSpp || {};
     let matchesStatus = true;
@@ -451,11 +456,12 @@ export default function StudentsView({
     doc.save(`Daftar_Siswa_${selectedClassFilter}.pdf`);
   };
 
-  // Highlight search queries in text strings
-  const highlightText = (text: string, query: string, fieldId: string) => {
-    if (!query.trim()) return <span id={`${fieldId}-text`}>{text}</span>;
+  // Highlight search queries in text strings safely
+  const highlightText = (text: any, query: string, fieldId: string) => {
+    const cleanText = (text !== undefined && text !== null) ? String(text) : "";
+    if (!query.trim()) return <span id={`${fieldId}-text`}>{cleanText}</span>;
     const safeQuery = query.trim().replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-    const parts = text.split(new RegExp(`(${safeQuery})`, 'gi'));
+    const parts = cleanText.split(new RegExp(`(${safeQuery})`, 'gi'));
     return (
       <span id={`${fieldId}-highlight-container`}>
         {parts.map((part, i) => 

@@ -83,12 +83,18 @@ export default function PaymentView({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Filter students based on search query
-  const filteredSiswa = siswaList.filter(s => 
-    s.nama.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    s.nis.includes(searchQuery) ||
-    s.kelas.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Filter students based on search query safely
+  const filteredSiswa = siswaList.filter(s => {
+    if (!s) return false;
+    const sNama = s.nama ? String(s.nama) : "";
+    const sNis = s.nis ? String(s.nis) : "";
+    const sKelas = s.kelas ? String(s.kelas) : "";
+
+    const query = searchQuery.toLowerCase();
+    return sNama.toLowerCase().includes(query) || 
+           sNis.includes(searchQuery) ||
+           sKelas.toLowerCase().includes(query);
+  });
 
   const selectedSiswa = siswaList.find(s => s.id === selectedSiswaId) || null;
 
@@ -357,7 +363,7 @@ export default function PaymentView({
             {/* Results popup list */}
             {showDropdown && filteredSiswa.length > 0 && (
               <div className="absolute left-0 right-0 top-full mt-2 bg-slate-900 border border-white/10 rounded-xl shadow-xl max-h-56 overflow-y-auto z-40 divide-y divide-white/5 animate-fade-in">
-                {filteredSiswa.map((s) => (
+                {filteredSiswa.slice(0, 15).map((s) => (
                   <button
                     key={s.id}
                     type="button"
@@ -373,6 +379,11 @@ export default function PaymentView({
                     </span>
                   </button>
                 ))}
+                {filteredSiswa.length > 15 && (
+                  <div className="px-4 py-2.5 bg-white/[0.02] text-[10px] font-mono text-slate-400 text-center border-t border-white/5">
+                    Menampilkan 15 dari {filteredSiswa.length} siswa. Ketik lebih spesifik untuk menyaring.
+                  </div>
+                )}
               </div>
             )}
 

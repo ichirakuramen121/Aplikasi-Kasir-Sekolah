@@ -227,12 +227,19 @@ export default function NotificationView({
     return list;
   }, [siswaList, biayaList]);
 
-  // Filter list by search term
+  // Filter list by search term safely
   const searchedOverdueList = useMemo(() => {
     return overdueUnpaidList.filter(item => {
-      return item.siswa.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
-             item.siswa.nis.includes(searchTerm) ||
-             item.siswa.kelas.toLowerCase().includes(searchTerm.toLowerCase());
+      const s = item.siswa;
+      if (!s) return false;
+      const nameStr = s.nama ? String(s.nama) : "";
+      const nisStr = s.nis ? String(s.nis) : "";
+      const classStr = s.kelas ? String(s.kelas) : "";
+      const q = searchTerm.toLowerCase();
+
+      return nameStr.toLowerCase().includes(q) ||
+             nisStr.includes(searchTerm) ||
+             classStr.toLowerCase().includes(q);
     });
   }, [overdueUnpaidList, searchTerm]);
 
