@@ -16,7 +16,8 @@ import {
   TrendingUp,
   CreditCard,
   Coins,
-  ArrowRightLeft
+  ArrowRightLeft,
+  RefreshCw
 } from "lucide-react";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -24,9 +25,28 @@ import autoTable from "jspdf-autotable";
 interface ReportsViewProps {
   transaksiList: Transaksi[];
   config: AppConfig;
+  onSyncFromSheet?: () => Promise<{ success: boolean; message: string }>;
 }
 
-export default function ReportsView({ transaksiList, config }: ReportsViewProps) {
+export default function ReportsView({ transaksiList, config, onSyncFromSheet }: ReportsViewProps) {
+  
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncFeedback, setSyncFeedback] = useState<{ success: boolean; message: string } | null>(null);
+
+  const handleSyncFromSheet = async () => {
+    if (!onSyncFromSheet) return;
+    setIsSyncing(true);
+    setSyncFeedback(null);
+    try {
+      const res = await onSyncFromSheet();
+      setSyncFeedback(res);
+      setTimeout(() => setSyncFeedback(null), 5000);
+    } catch (err: any) {
+      setSyncFeedback({ success: false, message: err.message || "Gagal menyinkronkan data." });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
   
   // Date configuration
   const now = new Date();
@@ -421,6 +441,17 @@ export default function ReportsView({ transaksiList, config }: ReportsViewProps)
           </div>
 
           <div className="flex items-center gap-2">
+            {config.sheetUrl && onSyncFromSheet && (
+              <button
+                onClick={handleSyncFromSheet}
+                disabled={isSyncing}
+                className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600/20 hover:bg-emerald-600 border border-emerald-500/30 text-emerald-400 hover:text-white font-semibold rounded-xl text-xs transition-all cursor-pointer disabled:opacity-50 active:scale-95"
+                title="Sinkronkan jurnal kas dengan Google Sheet"
+              >
+                <RefreshCw className={`size-3.5 ${isSyncing ? "animate-spin" : ""}`} />
+                {isSyncing ? "Menyinkronkan..." : "Sinkron Google Sheet"}
+              </button>
+            )}
             <button
               onClick={exportToCSV}
               className="flex items-center gap-1.5 px-3.5 py-2 hover:bg-white/10 border border-white/10 text-white font-semibold rounded-xl text-xs transition-colors cursor-pointer"
@@ -445,6 +476,19 @@ export default function ReportsView({ transaksiList, config }: ReportsViewProps)
             </button>
           </div>
         </div>
+
+        {syncFeedback && (
+          <div className={`mx-5 mt-4 p-3 rounded-xl border text-xs leading-relaxed animate-fade-in ${
+            syncFeedback.success 
+              ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-300" 
+              : "bg-red-500/10 border-red-500/20 text-red-300"
+          }`}>
+            <span>
+              <strong className="font-bold">{syncFeedback.success ? "Berhasil: " : "Gagal: "}</strong>
+              {syncFeedback.message}
+            </span>
+          </div>
+        )}
 
         {/* Allocation stats for current filters */}
         <div className="bg-white/5 border-b border-white/10 p-4 grid grid-cols-2 sm:grid-cols-5 gap-3 text-center">

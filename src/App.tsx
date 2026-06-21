@@ -255,7 +255,8 @@ export default function App() {
     currentSiswa = siswaList, 
     currentTrx = transaksiList,
     currentBiaya = biayaList,
-    currentLogs = notificationLogs
+    currentLogs = notificationLogs,
+    forceOverwriteEmpty = false
   ): Promise<{ success: boolean; message: string }> => {
     if (!url) return { success: false, message: "URL Google Apps Script kosong atau belum diset." };
     setConnectionStatus('testing');
@@ -273,23 +274,23 @@ export default function App() {
         const sheetBiaya: BiayaSekolah[] = body.data.biaya || [];
         const sheetLogs: NotifikasiLog[] = body.data.logs || [];
 
-        if (sheetSiswa.length > 0) {
+        if (sheetSiswa.length > 0 || (forceOverwriteEmpty && body.data.siswa !== undefined)) {
           // Keep sheets list since sheet is source of truth
           setSiswaList(sheetSiswa);
           localStorage.setItem("KAS_SEKOLAH_SISWA", JSON.stringify(sheetSiswa));
         }
         
-        if (sheetTransaksi.length > 0) {
+        if (sheetTransaksi.length > 0 || (forceOverwriteEmpty && body.data.transaksi !== undefined)) {
           setTransaksiList(sheetTransaksi);
           localStorage.setItem("KAS_SEKOLAH_TRANSAKSI", JSON.stringify(sheetTransaksi));
         }
 
-        if (sheetBiaya.length > 0) {
+        if (sheetBiaya.length > 0 || (forceOverwriteEmpty && body.data.biaya !== undefined)) {
           setBiayaList(sheetBiaya);
           localStorage.setItem("KAS_SEKOLAH_BIAYA", JSON.stringify(sheetBiaya));
         }
 
-        if (sheetLogs.length > 0) {
+        if (sheetLogs.length > 0 || (forceOverwriteEmpty && body.data.logs !== undefined)) {
           setNotificationLogs(sheetLogs);
           localStorage.setItem("KAS_SEKOLAH_LOGS", JSON.stringify(sheetLogs));
         }
@@ -812,6 +813,9 @@ export default function App() {
             <ReportsView
               transaksiList={transaksiList}
               config={config}
+              onSyncFromSheet={async () => {
+                return await testSheetConnection(config.sheetUrl, siswaList, transaksiList, biayaList, notificationLogs, true);
+              }}
             />
           )}
 
@@ -823,6 +827,9 @@ export default function App() {
               connectionStatus={connectionStatus}
               onTestConnection={async () => {
                 return await testSheetConnection();
+              }}
+              onPullAllData={async () => {
+                return await testSheetConnection(config.sheetUrl, siswaList, transaksiList, biayaList, notificationLogs, true);
               }}
             />
           )}

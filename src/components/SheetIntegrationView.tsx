@@ -22,6 +22,7 @@ interface SheetIntegrationViewProps {
   onSyncAllData: () => Promise<{ success: boolean; message: string }>;
   connectionStatus: 'connected' | 'disconnected' | 'testing';
   onTestConnection: () => Promise<{ success: boolean; message: string }>;
+  onPullAllData?: () => Promise<{ success: boolean; message: string }>;
 }
 
 export function getUrlExplanation(url: string): { type: "success" | "warn" | "error"; label: string; text: string } {
@@ -79,7 +80,8 @@ export default function SheetIntegrationView({
   onUpdateConfig,
   onSyncAllData,
   connectionStatus,
-  onTestConnection
+  onTestConnection,
+  onPullAllData
 }: SheetIntegrationViewProps) {
   
   const [sheetUrl, setSheetUrl] = useState(config.sheetUrl);
@@ -88,6 +90,8 @@ export default function SheetIntegrationView({
   const [syncResult, setSyncResult] = useState<{ success: boolean; message: string } | null>(null);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [testLoading, setTestLoading] = useState(false);
+  const [pullLoading, setPullLoading] = useState(false);
+  const [pullResult, setPullResult] = useState<{ success: boolean; message: string } | null>(null);
 
   const urlExp = getUrlExplanation(sheetUrl);
 
@@ -123,6 +127,23 @@ export default function SheetIntegrationView({
       setSyncResult({ success: false, message: err.message || "Gagal melakukan sinkronisasi." });
     } finally {
       setSyncLoading(false);
+    }
+  };
+
+  const handlePull = async () => {
+    if (!onPullAllData) return;
+    const confirmChoice = window.confirm("PENTING: Menarik data dari Google Sheets akan menimpa seluruh database lokal Anda saat ini. Jika spreadsheet kosong, data lokal juga akan dikosongkan. Lanjutkan?");
+    if (!confirmChoice) return;
+    
+    setPullLoading(true);
+    setPullResult(null);
+    try {
+      const res = await onPullAllData();
+      setPullResult(res);
+    } catch (err: any) {
+      setPullResult({ success: false, message: err.message || "Gagal menarik data." });
+    } finally {
+      setPullLoading(false);
     }
   };
 
@@ -548,23 +569,34 @@ function updateAllLogs(sheet, logsList) {
 
         {/* Sync panel */}
         {config.sheetUrl && (
-          <div className="border-t border-white/5 pt-5 space-y-3">
+          <div className="border-t border-white/5 pt-5 space-y-4">
             <div className="flex items-center gap-2">
               <Database className="size-4.5 text-blue-450" />
               <h4 className="font-bold text-white text-xs text-left">Sinkronisasi Database Manual</h4>
             </div>
             <p className="text-xs text-slate-300 leading-relaxed max-w-xl">
-              Sinkronisasikan katalog biodata siswa dari aplikasi ini ke Spreadsheet. Ini akan memperbarui data siswa pada Google Sheet dengan seluruh data terkini.
+              Gunakan kontrol di bawah untuk mengirim data lokal ke Google Sheet ("Unggah") atau menarik data terbaru dari Google Sheet ("Tarik") untuk menyelaraskan catatan.
             </p>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <button
                 disabled={syncLoading}
                 onClick={handleSync}
-                className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs transition-colors border border-emerald-400/20 shadow-lg shadow-emerald-500/10 cursor-pointer flex items-center gap-1.5 active:transform active:scale-[0.98]"
+                className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs transition-colors border border-emerald-400/20 shadow-lg shadow-emerald-500/10 cursor-pointer flex items-center gap-1.5 active:transform active:scale-[0.98] w-full sm:w-auto justify-center"
               >
                 <RefreshCw className={`size-3.5 ${syncLoading ? 'animate-spin' : ''}`} />
                 Unggah Katalog Siswa ke Google Sheet
               </button>
+
+              {onPullAllData && (
+                <button
+                  disabled={pullLoading}
+                  onClick={handlePull}
+                  className="px-5 py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl text-xs transition-colors border border-sky-500/20 shadow-lg shadow-sky-600/10 cursor-pointer flex items-center gap-1.5 active:transform active:scale-[0.98] w-full sm:w-auto justify-center"
+                >
+                  <RefreshCw className={`size-3.5 ${pullLoading ? 'animate-spin' : ''}`} />
+                  Tarik Seluruh Data dari Google Sheet
+                </button>
+              )}
             </div>
 
             {syncResult && (
@@ -577,6 +609,20 @@ function updateAllLogs(sheet, logsList) {
                 <span>
                   {syncResult.success ? <strong className="font-bold">Berhasil: </strong> : <strong className="font-bold">Gagal: </strong>}
                   {syncResult.message}
+                </span>
+              </div>
+            )}
+
+            {pullResult && (
+              <div className={`p-3 rounded-xl border flex gap-2 text-xs leading-relaxed max-w-xl animate-fade-in ${
+                pullResult.success 
+                  ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-300" 
+                  : "bg-red-500/10 border-red-500/20 text-red-300"
+              }`}>
+                {pullResult.success ? <CheckCircle className="size-4 shrink-0 text-emerald-400" /> : <AlertTriangle className="size-4 shrink-0 text-red-400" />}
+                <span>
+                  {pullResult.success ? <strong className="font-bold">Berhasil: </strong> : <strong className="font-bold">Gagal: </strong>}
+                  {pullResult.message}
                 </span>
               </div>
             )}
