@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Siswa, Transaksi, AppConfig, BiayaSekolah, NotifikasiLog } from "./types";
 import { SEED_SISWA, SEED_TRANSAKSI } from "./seedData";
 import { formatRupiah } from "./utils";
@@ -61,11 +61,26 @@ export default function App() {
   const [activeReceipt, setActiveReceipt] = useState<Transaksi | null>(null);
   const [selectedSiswaIdForPayment, setSelectedSiswaIdForPayment] = useState<string | undefined>(undefined);
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'testing'>('disconnected');
+  const [backgroundSyncActive, setBackgroundSyncActive] = useState<boolean>(false);
+  const [backgroundSyncStatus, setBackgroundSyncStatus] = useState<string>("");
   const [schoolSettingsOpen, setSchoolSettingsOpen] = useState(false);
   const [isDark, setIsDark] = useState<boolean>(() => {
     const cachedVal = localStorage.getItem("KAS_SEKOLAH_THEME");
     return cachedVal === "dark"; // Default is false (light mode, white background)
   });
+  
+  const isThemeMounted = useRef(false);
+
+  useEffect(() => {
+    localStorage.setItem("KAS_SEKOLAH_THEME", isDark ? "dark" : "light");
+    if (isThemeMounted.current) {
+      if (config.sheetUrl) {
+        saveGlobalSettings(config, undefined, undefined, isDark ? "dark" : "light");
+      }
+    } else {
+      isThemeMounted.current = true;
+    }
+  }, [isDark]);
 
   // Authentication State
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
@@ -86,7 +101,32 @@ export default function App() {
   const [setOpenUsername, setSetOpenUsername] = useState("");
   const [setOpenPassword, setSetOpenPassword] = useState("");
 
-  // --- INITIAL DATA LOAD ---
+  const saveGlobalSettings = async (
+    targetConfig: AppConfig,
+    username?: string,
+    password?: string,
+    theme?: string
+  ) => {
+    const currentUsername = username !== undefined ? username : (localStorage.getItem("KAS_SEKOLAH_USER") || "admin");
+    const currentPassword = password !== undefined ? password : (localStorage.getItem("KAS_SEKOLAH_PASS") || "admin123");
+    const currentTheme = theme !== undefined ? theme : (isDark ? "dark" : "light");
+
+    try {
+      await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          config: targetConfig,
+          auth: { username: currentUsername, password: currentPassword },
+          theme: currentTheme
+        })
+      });
+    } catch (err) {
+      console.error("Failed to persist settings on server", err);
+    }
+  };
+
+  // --- INITIAL DATA LOAD & RE-SYNC ---
   useEffect(() => {
     // 1. Get cached config
     const cachedConfig = localStorage.getItem("KAS_SEKOLAH_CONFIG");
@@ -144,10 +184,73 @@ export default function App() {
     }
     setNotificationLogs(initialLogs);
 
-    // 6. If Google Sheet URL is loaded, attempt background sync connection test
-    if (currentConfig.sheetUrl) {
-      testSheetConnection(currentConfig.sheetUrl, initialSiswa, initialTrx, initialBiaya, initialLogs);
-    }
+    // 6. Async load backend server settings and background sync from Google Sheet url
+    const loadAndSyncBackground = async () => {
+      let activeSheetUrl = currentConfig.sheetUrl;
+      
+      try {
+        setBackgroundSyncActive(true);
+        setBackgroundSyncStatus("Menghubungkan ke server...");
+        
+        const res = await fetch("/api/settings");
+        if (res.ok) {
+          const body = await res.json();
+          if (body.success && body.data) {
+            console.log("[Settings Sync] Server settings loaded successfully:", body.data);
+            const { config: serverConfig, auth, theme } = body.data;
+            
+            if (serverConfig) {
+              setConfig(serverConfig);
+              localStorage.setItem("KAS_SEKOLAH_CONFIG", JSON.stringify(serverConfig));
+              activeSheetUrl = serverConfig.sheetUrl;
+            }
+
+            if (auth) {
+              if (auth.username) localStorage.setItem("KAS_SEKOLAH_USER", auth.username);
+              if (auth.password) localStorage.setItem("KAS_SEKOLAH_PASS", auth.password);
+            }
+
+            if (theme) {
+              setIsDark(theme === "dark");
+              localStorage.setItem("KAS_SEKOLAH_THEME", theme);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("[Settings Sync] Failed to fetch server settings", err);
+      }
+
+      if (activeSheetUrl) {
+        setBackgroundSyncStatus("Sinkronisasi database dengan Google Sheets...");
+        try {
+          const syncRes = await testSheetConnection(
+            activeSheetUrl,
+            initialSiswa,
+            initialTrx,
+            initialBiaya,
+            initialLogs,
+            true
+          );
+          if (syncRes.success) {
+            setBackgroundSyncStatus("Sinkronisasi latar belakang berhasil!");
+          } else {
+            setBackgroundSyncStatus("Gagal menyinkronkan data.");
+          }
+        } catch (e) {
+          console.error("[Sheets Sync background error]", e);
+          setBackgroundSyncStatus("Gagal menyambung ke Sheets.");
+        }
+      } else {
+        setBackgroundSyncActive(false);
+      }
+
+      // Hide sync indicator automatically after delay
+      setTimeout(() => {
+        setBackgroundSyncActive(false);
+      }, 4000);
+    };
+
+    loadAndSyncBackground();
   }, []);
 
   // Sync variables to localStorage when changed locally
@@ -164,6 +267,7 @@ export default function App() {
   const saveLocalConfig = (newConfig: AppConfig) => {
     setConfig(newConfig);
     localStorage.setItem("KAS_SEKOLAH_CONFIG", JSON.stringify(newConfig));
+    saveGlobalSettings(newConfig);
   };
 
   // --- GOOGLE SHEETS CONNECTION & SYNC ---
@@ -513,8 +617,11 @@ export default function App() {
     saveLocalConfig(updated);
     
     // Save authentication overrides
-    localStorage.setItem("KAS_SEKOLAH_USER", setOpenUsername.trim() || "admin");
-    localStorage.setItem("KAS_SEKOLAH_PASS", setOpenPassword || "admin123");
+    const finalUser = setOpenUsername.trim() || "admin";
+    const finalPass = setOpenPassword || "admin123";
+    localStorage.setItem("KAS_SEKOLAH_USER", finalUser);
+    localStorage.setItem("KAS_SEKOLAH_PASS", finalPass);
+    saveGlobalSettings(updated, finalUser, finalPass);
     
     setSchoolSettingsOpen(false);
   };
@@ -596,6 +703,19 @@ export default function App() {
               </span>
             )}
           </div>
+
+          {/* Background synchronization indicator */}
+          {backgroundSyncActive && (
+            <div className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl border animate-fade-in transition-all ${
+              isDark ? "bg-blue-500/10 border-blue-500/20 text-blue-300" : "bg-blue-50 border-blue-100 text-blue-700"
+            }`}>
+              <div className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+              </div>
+              <span className="text-[10px] font-bold tracking-tight max-w-[120px] sm:max-w-[200px] md:max-w-none truncate">{backgroundSyncStatus}</span>
+            </div>
+          )}
 
           {/* Theme Switcher Button */}
           <button

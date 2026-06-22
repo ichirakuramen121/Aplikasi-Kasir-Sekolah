@@ -5,6 +5,7 @@
 
 import express from "express";
 import path from "path";
+import fs from "fs";
 import { createServer as createViteServer } from "vite";
 
 async function startServer() {
@@ -89,6 +90,38 @@ async function startServer() {
   // Serve other API endpoints (like a status or simple test endpoint)
   app.get("/api/status", (req, res) => {
     res.json({ status: "running", time: new Date().toISOString() });
+  });
+
+  const SETTINGS_FILE = path.join(process.cwd(), "app_settings.json");
+
+  // API Route: Get Global Settings (shared across devices)
+  app.get("/api/settings", (req, res) => {
+    try {
+      if (fs.existsSync(SETTINGS_FILE)) {
+        const content = fs.readFileSync(SETTINGS_FILE, "utf-8");
+        const data = JSON.parse(content);
+        res.json({ success: true, data });
+      } else {
+        res.json({ success: false, message: "No settings file found yet." });
+      }
+    } catch (error: any) {
+      console.error("[Settings GET error]:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // API Route: Save Global Settings
+  app.post("/api/settings", (req, res) => {
+    try {
+      const { config, auth, theme } = req.body;
+      const dataToSave = { config, auth, theme, updatedAt: new Date().toISOString() };
+      fs.writeFileSync(SETTINGS_FILE, JSON.stringify(dataToSave, null, 2), "utf-8");
+      console.log(`[Settings POST] Successfully persisted settings on server.`);
+      res.json({ success: true, message: "Settings saved successfully on server." });
+    } catch (error: any) {
+      console.error("[Settings POST error]:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
   });
 
   // Vite middleware for development vs static serve for production
