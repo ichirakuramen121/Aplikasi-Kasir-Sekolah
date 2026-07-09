@@ -93,6 +93,7 @@ async function startServer() {
   });
 
   const SETTINGS_FILE = path.join(process.cwd(), "app_settings.json");
+  const DATABASE_FILE = path.join(process.cwd(), "app_database.json");
 
   // API Route: Get Global Settings (shared across devices)
   app.get("/api/settings", (req, res) => {
@@ -120,6 +121,36 @@ async function startServer() {
       res.json({ success: true, message: "Settings saved successfully on server." });
     } catch (error: any) {
       console.error("[Settings POST error]:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // API Route: Get Global Database (shared across devices)
+  app.get("/api/database", (req, res) => {
+    try {
+      if (fs.existsSync(DATABASE_FILE)) {
+        const content = fs.readFileSync(DATABASE_FILE, "utf-8");
+        const data = JSON.parse(content);
+        res.json({ success: true, data });
+      } else {
+        res.json({ success: false, message: "No database file found yet." });
+      }
+    } catch (error: any) {
+      console.error("[Database GET error]:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // API Route: Save Global Database
+  app.post("/api/database", (req, res) => {
+    try {
+      const { siswa, transaksi, biaya, logs } = req.body;
+      const dataToSave = { siswa, transaksi, biaya, logs, updatedAt: new Date().toISOString() };
+      fs.writeFileSync(DATABASE_FILE, JSON.stringify(dataToSave, null, 2), "utf-8");
+      console.log(`[Database POST] Successfully persisted database on server.`);
+      res.json({ success: true, message: "Database saved successfully on server." });
+    } catch (error: any) {
+      console.error("[Database POST error]:", error);
       res.status(500).json({ success: false, error: error.message });
     }
   });

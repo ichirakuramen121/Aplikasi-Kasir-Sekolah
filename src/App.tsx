@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { Siswa, Transaksi, AppConfig, BiayaSekolah, NotifikasiLog } from "./types";
 import { SEED_SISWA, SEED_TRANSAKSI } from "./seedData";
 import { formatRupiah } from "./utils";
@@ -126,6 +127,33 @@ export default function App() {
     }
   };
 
+  const saveGlobalDatabaseOnServer = async (
+    targetSiswa?: Siswa[],
+    targetTransaksi?: Transaksi[],
+    targetBiaya?: BiayaSekolah[],
+    targetLogs?: NotifikasiLog[]
+  ) => {
+    try {
+      const finalSiswa = targetSiswa !== undefined ? targetSiswa : siswaList;
+      const finalTrx = targetTransaksi !== undefined ? targetTransaksi : transaksiList;
+      const finalBiaya = targetBiaya !== undefined ? targetBiaya : biayaList;
+      const finalLogs = targetLogs !== undefined ? targetLogs : notificationLogs;
+
+      await fetch("/api/database", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          siswa: finalSiswa,
+          transaksi: finalTrx,
+          biaya: finalBiaya,
+          logs: finalLogs
+        })
+      });
+    } catch (err) {
+      console.error("Failed to save database to server:", err);
+    }
+  };
+
   // --- INITIAL DATA LOAD & RE-SYNC ---
   useEffect(() => {
     // 1. Get cached config
@@ -187,11 +215,16 @@ export default function App() {
     // 6. Async load backend server settings and background sync from Google Sheet url
     const loadAndSyncBackground = async () => {
       let activeSheetUrl = currentConfig.sheetUrl;
+      let activeSiswa = initialSiswa;
+      let activeTrx = initialTrx;
+      let activeBiaya = initialBiaya;
+      let activeLogs = initialLogs;
       
       try {
         setBackgroundSyncActive(true);
         setBackgroundSyncStatus("Menghubungkan ke server...");
         
+        // Load Settings
         const res = await fetch("/api/settings");
         if (res.ok) {
           const body = await res.json();
@@ -220,19 +253,54 @@ export default function App() {
         console.warn("[Settings Sync] Failed to fetch server settings", err);
       }
 
+      // Load Database from server
+      try {
+        setBackgroundSyncStatus("Sinkronisasi database...");
+        const dbRes = await fetch("/api/database");
+        if (dbRes.ok) {
+          const dbBody = await dbRes.json();
+          if (dbBody.success && dbBody.data) {
+            const { siswa, transaksi, biaya, logs } = dbBody.data;
+            if (siswa) {
+              setSiswaList(siswa);
+              localStorage.setItem("KAS_SEKOLAH_SISWA", JSON.stringify(siswa));
+              activeSiswa = siswa;
+            }
+            if (transaksi) {
+              setTransaksiList(transaksi);
+              localStorage.setItem("KAS_SEKOLAH_TRANSAKSI", JSON.stringify(transaksi));
+              activeTrx = transaksi;
+            }
+            if (biaya) {
+              setBiayaList(biaya);
+              localStorage.setItem("KAS_SEKOLAH_BIAYA", JSON.stringify(biaya));
+              activeBiaya = biaya;
+            }
+            if (logs) {
+              setNotificationLogs(logs);
+              localStorage.setItem("KAS_SEKOLAH_LOGS", JSON.stringify(logs));
+              activeLogs = logs;
+            }
+            console.log("[Database Sync] Server database loaded successfully in background.");
+          }
+        }
+      } catch (dbErr) {
+        console.warn("[Database Sync] Failed to fetch server database", dbErr);
+      }
+
       if (activeSheetUrl) {
-        setBackgroundSyncStatus("Sinkronisasi database dengan Google Sheets...");
+        setBackgroundSyncStatus("Menghubungkan ke Google Sheets...");
         try {
           const syncRes = await testSheetConnection(
             activeSheetUrl,
-            initialSiswa,
-            initialTrx,
-            initialBiaya,
-            initialLogs,
+            activeSiswa,
+            activeTrx,
+            activeBiaya,
+            activeLogs,
             true
           );
           if (syncRes.success) {
-            setBackgroundSyncStatus("Sinkronisasi latar belakang berhasil!");
+            setBackgroundSyncStatus("Sinkronisasi Google Sheets berhasil!");
           } else {
             setBackgroundSyncStatus("Gagal menyinkronkan data.");
           }
@@ -257,11 +325,13 @@ export default function App() {
   const saveLocalSiswa = (list: Siswa[]) => {
     setSiswaList(list);
     localStorage.setItem("KAS_SEKOLAH_SISWA", JSON.stringify(list));
+    saveGlobalDatabaseOnServer(list);
   };
 
   const saveLocalTransaksi = (list: Transaksi[]) => {
     setTransaksiList(list);
     localStorage.setItem("KAS_SEKOLAH_TRANSAKSI", JSON.stringify(list));
+    saveGlobalDatabaseOnServer(undefined, list);
   };
 
   const saveLocalConfig = (newConfig: AppConfig) => {
@@ -536,6 +606,7 @@ export default function App() {
   const saveBiayaMaster = (newList: BiayaSekolah[]) => {
     setBiayaList(newList);
     localStorage.setItem("KAS_SEKOLAH_BIAYA", JSON.stringify(newList));
+    saveGlobalDatabaseOnServer(undefined, undefined, newList);
     
     // Auto sync back to Google Sheets if connected
     if (config.sheetUrl && connectionStatus === 'connected') {
@@ -565,6 +636,7 @@ export default function App() {
     const updated = [...notificationLogs, newLog];
     setNotificationLogs(updated);
     localStorage.setItem("KAS_SEKOLAH_LOGS", JSON.stringify(updated));
+    saveGlobalDatabaseOnServer(undefined, undefined, undefined, updated);
 
     // Sync log back to Google Sheets if connected
     if (config.sheetUrl && connectionStatus === 'connected') {
@@ -870,90 +942,102 @@ export default function App() {
 
           {/* Quick Footer inside desktop sidebar */}
           <div className={`hidden md:block pt-4 border-t px-3 text-[10px] font-sans leading-relaxed transition-colors ${isDark ? "border-white/10 text-slate-400" : "border-slate-200 text-slate-500"}`}>
-            <p className={`font-semibold ${isDark ? "text-slate-300" : "text-slate-800"}`}>SMA Nusantara Mandiri v1.0</p>
-            <p className="mt-0.5">Sistem Kasir Offline-First Terintegrasi Google Sheet.</p>
+            <p className={`font-extrabold ${isDark ? "text-slate-300" : "text-slate-800"} truncate`} title={config.namaSekolah || "Toko Berkah"}>
+              {config.namaSekolah || "Toko Berkah"}
+            </p>
+            <p className="text-[9px] font-semibold text-slate-400 dark:text-slate-500">v1.0</p>
+            <p className="mt-1">Sistem Kasir Offline-First Terintegrasi Google Sheet.</p>
           </div>
 
         </aside>
 
         {/* CONTAINER ON RIGHT (Holds the view templates scrollable) */}
         <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-20 md:pb-6 bg-transparent no-print">
-          
-          {activeTab === 'dashboard' && (
-            <DashboardView
-              siswaList={siswaList}
-              transaksiList={transaksiList}
-              config={config}
-              onNavigateToPayment={handleNavigateToPayment}
-              onReprintReceipt={(trx) => setActiveReceipt(trx)}
-            />
-          )}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.15, ease: "easeInOut" }}
+              className="w-full"
+            >
+              {activeTab === 'dashboard' && (
+                <DashboardView
+                  siswaList={siswaList}
+                  transaksiList={transaksiList}
+                  config={config}
+                  onNavigateToPayment={handleNavigateToPayment}
+                  onReprintReceipt={(trx) => setActiveReceipt(trx)}
+                />
+              )}
 
-          {activeTab === 'payment' && (
-            <PaymentView
-              siswaList={siswaList}
-              config={config}
-              onSubmitPayment={handleProcessPayment}
-              selectedSiswaIdFromNav={selectedSiswaIdForPayment}
-              biayaList={biayaList}
-            />
-          )}
+              {activeTab === 'payment' && (
+                <PaymentView
+                  siswaList={siswaList}
+                  config={config}
+                  onSubmitPayment={handleProcessPayment}
+                  selectedSiswaIdFromNav={selectedSiswaIdForPayment}
+                  biayaList={biayaList}
+                />
+              )}
 
-          {activeTab === 'students' && (
-            <StudentsView
-              siswaList={siswaList}
-              config={config}
-              onAddSiswa={handleAddSiswa}
-              onAddSiswaBatch={handleAddSiswaBatch}
-              onEditSiswa={handleEditSiswa}
-              onDeleteSiswa={handleDeleteSiswa}
-              onNavigateToPayment={handleNavigateToPayment}
-            />
-          )}
+              {activeTab === 'students' && (
+                <StudentsView
+                  siswaList={siswaList}
+                  config={config}
+                  onAddSiswa={handleAddSiswa}
+                  onAddSiswaBatch={handleAddSiswaBatch}
+                  onEditSiswa={handleEditSiswa}
+                  onDeleteSiswa={handleDeleteSiswa}
+                  onNavigateToPayment={handleNavigateToPayment}
+                />
+              )}
 
-          {activeTab === 'fees' && (
-            <SchoolFeesView
-              biayaList={biayaList}
-              onAddBiaya={handleAddBiaya}
-              onEditBiaya={handleEditBiaya}
-              onDeleteBiaya={handleDeleteBiaya}
-            />
-          )}
+              {activeTab === 'fees' && (
+                <SchoolFeesView
+                  biayaList={biayaList}
+                  onAddBiaya={handleAddBiaya}
+                  onEditBiaya={handleEditBiaya}
+                  onDeleteBiaya={handleDeleteBiaya}
+                />
+              )}
 
-          {activeTab === 'notifications' && (
-            <NotificationView
-              siswaList={siswaList}
-              biayaList={biayaList}
-              notificationLogs={notificationLogs}
-              onAddLog={handleAddLog}
-            />
-          )}
+              {activeTab === 'notifications' && (
+                <NotificationView
+                  siswaList={siswaList}
+                  biayaList={biayaList}
+                  notificationLogs={notificationLogs}
+                  onAddLog={handleAddLog}
+                />
+              )}
 
-          {activeTab === 'reports' && (
-            <ReportsView
-              transaksiList={transaksiList}
-              config={config}
-              onSyncFromSheet={async () => {
-                return await testSheetConnection(config.sheetUrl, siswaList, transaksiList, biayaList, notificationLogs, true);
-              }}
-            />
-          )}
+              {activeTab === 'reports' && (
+                <ReportsView
+                  transaksiList={transaksiList}
+                  config={config}
+                  onSyncFromSheet={async () => {
+                    return await testSheetConnection(config.sheetUrl, siswaList, transaksiList, biayaList, notificationLogs, true);
+                  }}
+                />
+              )}
 
-          {activeTab === 'integration' && (
-            <SheetIntegrationView
-              config={config}
-              onUpdateConfig={saveLocalConfig}
-              onSyncAllData={handleUploadDataToSheet}
-              connectionStatus={connectionStatus}
-              onTestConnection={async () => {
-                return await testSheetConnection();
-              }}
-              onPullAllData={async () => {
-                return await testSheetConnection(config.sheetUrl, siswaList, transaksiList, biayaList, notificationLogs, true);
-              }}
-            />
-          )}
-
+              {activeTab === 'integration' && (
+                <SheetIntegrationView
+                  config={config}
+                  onUpdateConfig={saveLocalConfig}
+                  onSyncAllData={handleUploadDataToSheet}
+                  connectionStatus={connectionStatus}
+                  onTestConnection={async () => {
+                    return await testSheetConnection();
+                  }}
+                  onPullAllData={async () => {
+                    return await testSheetConnection(config.sheetUrl, siswaList, transaksiList, biayaList, notificationLogs, true);
+                  }}
+                />
+              )}
+            </motion.div>
+          </AnimatePresence>
         </main>
 
       </div>

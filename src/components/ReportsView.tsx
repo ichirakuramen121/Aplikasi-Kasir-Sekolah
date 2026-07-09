@@ -4,7 +4,7 @@
  */
 
 import { Transaksi, AppConfig } from "../types";
-import { formatRupiah, formatBulanIndo } from "../utils";
+import { formatRupiah, formatBulanIndo, DAFTAR_BULAN } from "../utils";
 import { useState } from "react";
 import { 
   Printer, 
@@ -60,18 +60,7 @@ export default function ReportsView({ transaksiList, config, onSyncFromSheet }: 
 
   const months = [
     { key: "Semua", label: "Semua Laporan" },
-    { key: "2026-01", label: "Januari 2026" },
-    { key: "2026-02", label: "Februari 2026" },
-    { key: "2026-03", label: "Maret 2026" },
-    { key: "2026-04", label: "April 2026" },
-    { key: "2026-05", label: "Mei 2026" },
-    { key: "2026-06", label: "Juni 2026" },
-    { key: "2026-07", label: "Juli 2026" },
-    { key: "2026-08", label: "Agustus 2026" },
-    { key: "2026-09", label: "September 2026" },
-    { key: "2026-10", label: "Oktober 2026" },
-    { key: "2026-11", label: "November 2026" },
-    { key: "2026-12", label: "Desember 2026" }
+    ...DAFTAR_BULAN
   ];
 
   const types = ["Semua", "SPP", "Uang Gedung", "Seragam", "Kegiatan", "Lainnya"];

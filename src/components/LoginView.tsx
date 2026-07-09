@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Building2, Lock, User, Eye, EyeOff, LogIn, AlertCircle } from "lucide-react";
+import { Lock, User, Eye, EyeOff, LogIn, AlertCircle } from "lucide-react";
 import { AppConfig } from "../types";
 
 interface LoginViewProps {
@@ -20,79 +20,90 @@ export default function LoginView({ onLoginSuccess, config, isDark }: LoginViewP
     setError(null);
     setIsLoading(true);
 
-    // Simulate database lookup / credentials verification
     setTimeout(() => {
       // Fetch custom credentials from localStorage, otherwise default to admin/admin123
       const savedUser = localStorage.getItem("KAS_SEKOLAH_USER") || "admin";
       const savedPass = localStorage.getItem("KAS_SEKOLAH_PASS") || "admin123";
 
       if (username.trim() === savedUser && password === savedPass) {
-        // Correct credentials
         sessionStorage.setItem("KAS_SEKOLAH_LOGGED_IN", "true");
-        localStorage.removeItem("KAS_SEKOLAH_LOGGED_IN"); // Clean up any old localStorage
+        localStorage.removeItem("KAS_SEKOLAH_LOGGED_IN");
         onLoginSuccess();
       } else {
         setError("Username atau password salah. Silakan coba kembali.");
         setIsLoading(false);
       }
-    }, 600); // Friendly natural latency
+    }, 600);
   };
 
   return (
-    <div className={`min-h-screen flex items-center justify-center p-4 transition-colors duration-300 font-sans ${isDark ? "dark mesh-bg" : "light bg-slate-50"}`}>
-      <div className="w-full max-w-md select-none">
+    <div className={`min-h-screen flex items-center justify-center p-4 transition-colors duration-300 font-sans ${isDark ? "bg-[#0f172a]" : "bg-[#f3f4f6]"}`}>
+      <div className="w-full max-w-4xl select-none animate-fade-in">
         
-        {/* Brand Banner */}
-        <div className="text-center mb-8 animate-fade-in">
-          {config.logoSekolah ? (
-            <img 
-              src={config.logoSekolah} 
-              alt="Logo Sekolah" 
-              referrerPolicy="no-referrer"
-              className="inline-flex size-20 object-contain mb-4 transition-transform hover:scale-105"
-            />
-          ) : (
-            <div className="inline-flex size-16 bg-blue-600 rounded-2xl items-center justify-center text-white shadow-xl shadow-blue-500/20 mb-4 transition-transform hover:scale-105">
-              <Building2 className="size-8" />
-            </div>
-          )}
-          <h1 className={`text-2xl font-extrabold tracking-tight transition-colors duration-300 ${isDark ? "text-white" : "text-slate-900"}`}>
-            {config.namaSekolah || "SMA Nusantara Mandiri"}
-          </h1>
-          <p className={`text-xs mt-1 font-semibold uppercase tracking-wider transition-colors duration-300 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-            Sistem Kasir Penerimaan & SPP Sekolah
-          </p>
-        </div>
-
-        {/* Login Card */}
-        <div className={`border transition-all duration-300 rounded-2xl shadow-xl overflow-hidden ${
+        {/* Main Split Layout Container */}
+        <div className={`rounded-[32px] overflow-hidden shadow-2xl flex flex-col md:flex-row border transition-all duration-300 ${
           isDark 
-            ? "bg-slate-900 border-white/10 text-slate-100" 
-            : "bg-white border-slate-200 text-slate-800"
+            ? "bg-slate-900 border-white/10 text-white" 
+            : "bg-white border-slate-100 text-slate-800"
         }`}>
           
-          <div className="p-6 sm:p-8 space-y-6">
-            <div className="space-y-1 text-center">
-              <h2 className="text-base font-bold text-white">Login Admin</h2>
-              <p className="text-xs text-slate-400 font-medium font-semibold">Lakukan login untuk mengelola tagihan, kuitansi, dan sinkronisasi.</p>
+          {/* Left Side: Dynamic Welcome Banner (Blue/Indigo Gradient matching Dashboard) */}
+          <div className="w-full md:w-1/2 p-8 sm:p-12 flex flex-col justify-center bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 text-white min-h-[380px] md:min-h-[520px] relative overflow-hidden">
+            {/* Soft Ambient Vector Art Overlays */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-2xl -mr-20 -mt-20 pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-48 h-48 bg-black/5 rounded-full blur-xl -ml-16 -mb-16 pointer-events-none" />
+
+            <div className="relative z-10">
+              {/* Person Icon in Circle */}
+              <div className="inline-flex p-3.5 bg-white/10 border border-white/10 rounded-full w-fit mb-8 sm:mb-12 shadow-inner">
+                <User className="size-6 text-white" />
+              </div>
+
+              {/* Headings */}
+              <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight leading-tight">
+                Selamat Datang di
+              </h2>
+              <h1 className="text-3xl sm:text-4xl font-black text-amber-305 tracking-tight leading-tight mt-1 mb-5 drop-shadow-sm uppercase">
+                {config.namaSekolah || "Toko Berkah"}
+              </h1>
+
+              {/* Descriptive Text */}
+              <p className="text-white/95 text-xs sm:text-sm leading-relaxed max-w-sm font-medium">
+                Sistem SPP & Manajemen Kasir otomatis yang terintegrasi secara real-time antar perangkat dan cloud Google Sheets.
+              </p>
+            </div>
+          </div>
+
+          {/* Right Side: Login Action Form */}
+          <div className="w-full md:w-1/2 p-8 sm:p-12 flex flex-col justify-center">
+            
+            {/* Header Title */}
+            <div className="mb-8">
+              <h2 className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${isDark ? "text-white" : "text-slate-900"}`}>
+                Login Account
+              </h2>
+              <p className={`text-xs sm:text-sm mt-1.5 font-medium ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+                Silakan masuk menggunakan username dan password Anda.
+              </p>
             </div>
 
-            {/* Error Message Box */}
+            {/* Error Notification Alert */}
             {error && (
-              <div className="p-3.5 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-xs flex items-start gap-2.5 animate-shake">
-                <AlertCircle className="size-4 shrink-0 mt-0.5" />
-                <span className="font-semibold leading-relaxed">{error}</span>
+              <div className="p-3.5 bg-red-500/10 border border-red-500/20 text-red-500 dark:text-red-400 rounded-xl text-xs flex items-start gap-2.5 mb-5 animate-shake font-medium">
+                <AlertCircle className="size-4 shrink-0 mt-0.5 text-red-500" />
+                <span className="leading-relaxed">{error}</span>
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Username Input */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-300 flex items-center justify-between">
-                  <span>Username</span>
+            <form onSubmit={handleSubmit} className="space-y-5">
+              
+              {/* Username Field */}
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wider mb-2 block text-blue-600 dark:text-blue-400">
+                  USERNAME LOGIN
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-450">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
                     <User className="size-4" />
                   </span>
                   <input
@@ -101,18 +112,22 @@ export default function LoginView({ onLoginSuccess, config, isDark }: LoginViewP
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     placeholder="Masukkan username"
-                    className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 text-white font-semibold rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-slate-950 transition-all placeholder:text-slate-500 placeholder:font-medium text-slate-100"
+                    className={`w-full pl-10 pr-4 py-3 border rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all font-semibold placeholder:text-slate-400 placeholder:font-medium ${
+                      isDark 
+                        ? "bg-slate-800/50 border-white/10 text-white focus:bg-slate-955" 
+                        : "bg-slate-50 border-slate-200/80 text-slate-800 focus:bg-white"
+                    }`}
                   />
                 </div>
               </div>
 
-              {/* Password Input */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-300 flex items-center justify-between">
-                  <span>Password</span>
+              {/* Password Field */}
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wider mb-2 block text-blue-600 dark:text-blue-400">
+                  PASSWORD
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-450">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
                     <Lock className="size-4" />
                   </span>
                   <input
@@ -121,40 +136,46 @@ export default function LoginView({ onLoginSuccess, config, isDark }: LoginViewP
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Masukkan password"
-                    className="w-full pl-9 pr-10 py-2.5 bg-white/5 border border-white/10 text-white font-semibold rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-slate-950 transition-all placeholder:text-slate-500 placeholder:font-medium text-slate-100"
+                    className={`w-full pl-10 pr-10 py-3 border rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all font-semibold placeholder:text-slate-400 placeholder:font-medium ${
+                      isDark 
+                        ? "bg-slate-800/50 border-white/10 text-white focus:bg-slate-955" 
+                        : "bg-slate-50 border-slate-200/80 text-slate-800 focus:bg-white"
+                    }`}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-450 hover:text-white transition-colors cursor-pointer"
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-450 hover:text-slate-600 dark:hover:text-white transition-colors cursor-pointer"
                   >
                     {showPassword ? (
-                      <EyeOff className="size-4" />
+                      <EyeOff className="size-4 text-slate-400" />
                     ) : (
-                      <Eye className="size-4" />
+                      <Eye className="size-4 text-slate-400" />
                     )}
                   </button>
                 </div>
               </div>
 
-              <div className="pt-2">
+              {/* Form Action Button */}
+              <div className="pt-3">
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-550 hover:bg-blue-600 disabled:bg-blue-600/50 text-white font-bold text-xs rounded-xl transition-all shadow-lg shadow-blue-500/15 cursor-pointer active:scale-95"
+                  className="w-full flex items-center justify-center gap-2 py-3.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white font-extrabold text-xs sm:text-sm rounded-xl tracking-wider uppercase transition-all shadow-md shadow-blue-600/10 active:scale-[0.98] cursor-pointer"
                 >
                   <LogIn className="size-4" />
-                  {isLoading ? "Memvalidasi..." : "Masuk ke Sistem"}
+                  {isLoading ? "MEMVALIDASI..." : "MASUK APLIKASI"}
                 </button>
               </div>
-            </form>
 
+            </form>
           </div>
+
         </div>
 
-        {/* Footer info */}
-        <div className="text-center mt-6 text-[10px] text-slate-400 font-medium animate-fade-in">
-          Sistem Keuangan Kasir & SPP Sekolah v1.0. All Rights Reserved.
+        {/* Footer Attribution */}
+        <div className={`text-center mt-8 text-[10px] font-medium tracking-wide uppercase transition-colors duration-300 ${isDark ? "text-slate-500" : "text-slate-400"}`}>
+          Sistem Keuangan Kasir & SPP Sekolah v1.2. All Rights Reserved.
         </div>
 
       </div>

@@ -4,7 +4,7 @@
  */
 
 import { Siswa, Transaksi, AppConfig } from "../types";
-import { formatRupiah } from "../utils";
+import { formatRupiah, DAFTAR_BULAN, formatBulanIndo } from "../utils";
 import { 
   TrendingUp, 
   Users, 
@@ -67,26 +67,23 @@ export default function DashboardView({
   const dynamicClasses = Array.from(new Set(siswaList.map(s => s.kelas))).filter(Boolean).sort();
   const classes = ["Semua", ...(dynamicClasses.length > 0 ? dynamicClasses : ["X-IPA-1", "X-IPA-2", "X-IPS-1", "XI-IPA-1", "XI-IPA-2", "XI-IPS-1", "XII-IPA-1", "XII-IPS-1"])];
 
-  // Monthly breakdown for SVG Trend Graph
-  const monthlyDataMap: Record<string, number> = {
-    "01": 0, "02": 0, "03": 0, "04": 0, "05": 0, "06": 0
-  };
+  // Monthly breakdown for SVG Trend Graph based on DAFTAR_BULAN academic year
+  const monthlyDataMap: Record<string, number> = {};
+  DAFTAR_BULAN.forEach(m => {
+    monthlyDataMap[m.key] = 0;
+  });
   
   filteredTransaksiList.forEach(t => {
-    // Extract month e.g., "05" from "2026-05-23"
-    const matches = t.tanggal.match(/^\d{4}-(\d{2})-\d{2}/);
-    if (matches && matches[1]) {
-      const m = matches[1];
-      if (monthlyDataMap[m] !== undefined) {
-        monthlyDataMap[m] += t.jumlah;
-      }
+    // Extract month key "YYYY-MM" from "YYYY-MM-DD HH:mm:ss"
+    const mKey = t.tanggal.substring(0, 7);
+    if (monthlyDataMap[mKey] !== undefined) {
+      monthlyDataMap[mKey] += t.jumlah;
     }
   });
 
-  const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni"];
-  const trendData = Object.keys(monthlyDataMap).sort().map((m, idx) => ({
-    month: monthNames[idx],
-    value: monthlyDataMap[m]
+  const trendData = DAFTAR_BULAN.map(m => ({
+    month: m.label.split(" ")[0], // Get only name e.g. "Juli"
+    value: monthlyDataMap[m.key] || 0
   }));
 
   const maxTrendValue = Math.max(...trendData.map(d => d.value), 100000);
@@ -297,20 +294,20 @@ export default function DashboardView({
 
                 {/* Bars & Dots */}
                 {trendData.map((d, i) => {
-                  const x = 70 + i * 78;
+                  const x = 50 + i * 38;
                   const barHeight = d.value > 0 ? (d.value / maxTrendValue) * 160 : 0;
                   const barY = 180 - barHeight;
 
                   return (
                     <g key={i} className="group cursor-pointer">
                       {/* Interactive block hover */}
-                      <rect x={x - 20} y="20" width="40" height="170" fill="transparent" className="hover:fill-white/5 transition-all rounded" />
+                      <rect x={x - 14} y="20" width="28" height="170" fill="transparent" className="hover:fill-white/5 transition-all rounded" />
                       
                       {/* Main Bar */}
                       <rect 
-                        x={x - 10} 
+                        x={x - 8} 
                         y={barY} 
-                        width="20" 
+                        width="16" 
                         height={barHeight} 
                         fill="#60a5fa" 
                         rx="4" 
@@ -343,7 +340,7 @@ export default function DashboardView({
           
           <div className="border-t border-white/5 pt-3 flex justify-between items-center text-xs text-slate-450 font-sans">
             <span>Siswa yang bayar cash berkontribusi terbesar di periode ini.</span>
-            <span className="flex items-center gap-1.5"><Calendar className="size-3 text-blue-400" strokeWidth={2.5} /> Januari - Juni 2026</span>
+            <span className="flex items-center gap-1.5"><Calendar className="size-3 text-blue-400" strokeWidth={2.5} /> Juli 2025 - Juni 2026</span>
           </div>
         </div>
 

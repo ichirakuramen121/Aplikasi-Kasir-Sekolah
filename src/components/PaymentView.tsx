@@ -131,7 +131,7 @@ export default function PaymentView({
           setBulanCovered(unpaidMonth.key);
           setKeterangan(`Pembayaran SPP Bulan ${unpaidMonth.label}`);
           
-          const statusVal = sSpp[unpaidMonth.key] || "Belum_Bayar";
+          const statusVal = String(sSpp[unpaidMonth.key] || "Belum_Bayar");
           if (statusVal.startsWith("Kurang:")) {
             const sisa = Number(statusVal.split(":")[1]) || selectedSiswa.tagihanSpp;
             setJumlah(sisa);
@@ -141,8 +141,9 @@ export default function PaymentView({
             setJumlahBayarSekarang(selectedSiswa.tagihanSpp);
           }
         } else {
-          setBulanCovered("2026-06");
-          setKeterangan(`Pembayaran SPP Bulan Juni 2026`);
+          const lastMonth = DAFTAR_BULAN[DAFTAR_BULAN.length - 1];
+          setBulanCovered(lastMonth.key);
+          setKeterangan(`Pembayaran SPP Bulan ${lastMonth.label}`);
           setJumlah(selectedSiswa.tagihanSpp);
           setJumlahBayarSekarang(selectedSiswa.tagihanSpp);
         }
@@ -210,7 +211,7 @@ export default function PaymentView({
     let totalAmount = 0;
     const sSpp = selectedSiswa.statusSpp || {};
     nextList.forEach((key) => {
-      const statusVal = sSpp[key] || "Belum_Bayar";
+      const statusVal = String(sSpp[key] || "Belum_Bayar");
       if (statusVal.startsWith("Kurang:")) {
         totalAmount += Number(statusVal.split(":")[1]) || selectedSiswa.tagihanSpp;
       } else {
