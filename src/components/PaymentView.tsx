@@ -4,7 +4,7 @@
  */
 
 import { Siswa, Transaksi, AppConfig, BiayaSekolah } from "../types";
-import { formatRupiah, generateKuitansiNumber, DAFTAR_BULAN, formatBulanIndo } from "../utils";
+import { formatRupiah, generateKuitansiNumber, DAFTAR_BULAN, formatBulanIndo, NAMA_BULAN, DAFTAR_TAHUN } from "../utils";
 import React, { useState, useEffect, useRef } from "react";
 import { 
   Search, 
@@ -569,37 +569,101 @@ export default function PaymentView({
               </div>
 
               {jenisPembayaran === "SPP" ? (
-                <div className="space-y-1.5 animate-fade-in">
-                  <label className="text-xs font-semibold text-slate-300">SPP Bulan Berjalan</label>
-                  <select
-                    disabled={!selectedSiswa}
-                    value={bulanCovered.includes(",") ? bulanCovered.split(",")[0] : bulanCovered}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setBulanCovered(val);
-                      const mLabel = DAFTAR_BULAN.find(d => d.key === val)?.label || "";
-                      setKeterangan(`Pembayaran SPP Bulan ${mLabel}`);
-                      if (selectedSiswa) {
-                        setJumlah(selectedSiswa.tagihanSpp);
-                      }
-                    }}
-                    className="w-full px-3.5 py-2.5 bg-white/5 border border-white/10 text-white font-semibold rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-                  >
-                    {DAFTAR_BULAN.map((m) => {
-                      const sSpp = selectedSiswa?.statusSpp || {};
-                      const isLunas = sSpp[m.key] === "Lunas";
+                <div className="space-y-1.5 animate-fade-in text-left">
+                  <label className="text-xs font-semibold text-slate-300">SPP Bulan & Tahun Berjalan</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {/* Month Select */}
+                    <div className="space-y-1">
+                      <span className="text-[10px] text-slate-400 block font-semibold">Pilih Bulan</span>
+                      <select
+                        disabled={!selectedSiswa}
+                        value={
+                          bulanCovered.includes(",") 
+                            ? (bulanCovered.split(",")[0].split("-")[1] || "01") 
+                            : (bulanCovered.split("-")[1] || "01")
+                        }
+                        onChange={(e) => {
+                          const selectMonth = e.target.value;
+                          const currentYear = bulanCovered.includes(",") 
+                            ? (bulanCovered.split(",")[0].split("-")[0] || "2026") 
+                            : (bulanCovered.split("-")[0] || "2026");
+                          const nextVal = `${currentYear}-${selectMonth}`;
+                          setBulanCovered(nextVal);
+                          const mName = NAMA_BULAN.find(nb => nb.key === selectMonth)?.label || "";
+                          setKeterangan(`Pembayaran SPP Bulan ${mName} ${currentYear}`);
+                          if (selectedSiswa) {
+                            setJumlah(selectedSiswa.tagihanSpp);
+                          }
+                        }}
+                        className="w-full px-3.5 py-2.5 bg-white/5 border border-white/10 text-white font-semibold rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                      >
+                        {NAMA_BULAN.map((m) => (
+                          <option key={m.key} value={m.key} className="bg-slate-900 text-white">
+                            {m.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Year Select */}
+                    <div className="space-y-1">
+                      <span className="text-[10px] text-slate-400 block font-semibold">Pilih Tahun</span>
+                      <select
+                        disabled={!selectedSiswa}
+                        value={
+                          bulanCovered.includes(",") 
+                            ? (bulanCovered.split(",")[0].split("-")[0] || "2026") 
+                            : (bulanCovered.split("-")[0] || "2026")
+                        }
+                        onChange={(e) => {
+                          const selectYear = e.target.value;
+                          const currentMonth = bulanCovered.includes(",") 
+                            ? (bulanCovered.split(",")[0].split("-")[1] || "01") 
+                            : (bulanCovered.split("-")[1] || "01");
+                          const nextVal = `${selectYear}-${currentMonth}`;
+                          setBulanCovered(nextVal);
+                          const mName = NAMA_BULAN.find(nb => nb.key === currentMonth)?.label || "";
+                          setKeterangan(`Pembayaran SPP Bulan ${mName} ${selectYear}`);
+                          if (selectedSiswa) {
+                            setJumlah(selectedSiswa.tagihanSpp);
+                          }
+                        }}
+                        className="w-full px-3.5 py-2.5 bg-white/5 border border-white/10 text-white font-semibold rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                      >
+                        {DAFTAR_TAHUN.map((y) => (
+                          <option key={y} value={y} className="bg-slate-900 text-white">
+                            Tahun {y}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Show current selection status check */}
+                  {selectedSiswa && (() => {
+                    const activeKey = bulanCovered.includes(",") ? bulanCovered.split(",")[0] : bulanCovered;
+                    const sSpp = selectedSiswa.statusSpp || {};
+                    const statusVal = sSpp[activeKey];
+                    if (statusVal === "Lunas") {
                       return (
-                        <option 
-                          key={m.key} 
-                          value={m.key}
-                          disabled={isLunas}
-                          className="bg-slate-900 border-none select-none text-white"
-                        >
-                          {m.label} {isLunas ? " (Lunas)" : ""}
-                        </option>
+                        <div className="mt-1 flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold leading-none w-fit">
+                          <span>✓ Status: Lunas</span>
+                        </div>
                       );
-                    })}
-                  </select>
+                    } else if (statusVal && statusVal.startsWith("Kurang:")) {
+                      return (
+                        <div className="mt-1 flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-bold leading-none w-fit">
+                          <span>⚠ Status: Kurang bayar {formatRupiah(Number(statusVal.split(":")[1]) || 0)}</span>
+                        </div>
+                      );
+                    } else {
+                      return (
+                        <div className="mt-1 flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-slate-300 text-xs font-bold leading-none w-fit">
+                          <span>● Status: Belum Bayar</span>
+                        </div>
+                      );
+                    }
+                  })()}
 
                   {/* Multi-month list visualizer badges */}
                   {selectedMonthsList.length > 0 && (

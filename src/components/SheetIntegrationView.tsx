@@ -674,19 +674,29 @@ function updateAllLogs(sheet, logsList) {
         </div>
 
         {/* Code panel (8/12 width) */}
-        <div className="lg:col-span-8 bg-slate-950 rounded-2xl border border-white/10 shadow-2xl overflow-hidden flex flex-col h-[400px]">
-          <div className="bg-white/5 px-4 py-2.5 border-b border-white/10 flex justify-between items-center text-xs">
-            <span className="font-semibold text-slate-300 font-mono text-[11px]">google_sheets_connector.js</span>
+        <div 
+          style={{ backgroundColor: '#0f172a', borderColor: '#334155' }} 
+          className="lg:col-span-8 rounded-2xl border shadow-2xl overflow-hidden flex flex-col h-[400px]"
+        >
+          <div 
+            style={{ backgroundColor: '#1e293b', borderBottomColor: '#334155' }} 
+            className="px-4 py-2.5 border-b flex justify-between items-center text-xs"
+          >
+            <span style={{ color: '#cbd5e1' }} className="font-semibold font-mono text-[11px]">google_sheets_connector.js</span>
             <button
               onClick={copyToClipboard}
-              className="flex items-center gap-1 text-[10px] text-emerald-400 font-bold hover:text-emerald-300 transform active:scale-95 transition-all bg-white/5 px-2.5 py-1 rounded cursor-pointer border border-white/10"
+              style={{ color: '#34d399', backgroundColor: 'rgba(52, 211, 153, 0.1)', borderColor: 'rgba(52, 211, 153, 0.2)' }}
+              className="flex items-center gap-1 text-[10px] font-bold hover:bg-emerald-500/20 transform active:scale-95 transition-all px-2.5 py-1 rounded cursor-pointer border"
             >
               <Copy className="size-3" />
               {copied ? "Tersalin!" : "Salin Kode"}
             </button>
           </div>
-          <div className="p-4 overflow-auto flex-1 font-mono text-[11px] text-slate-300 bg-slate-950/80 leading-relaxed font-semibold">
-            <pre>{scriptCodeTemplate}</pre>
+          <div 
+            style={{ backgroundColor: '#090d16', color: '#e2e8f0' }} 
+            className="p-4 overflow-auto flex-1 font-mono text-[11px] leading-relaxed font-semibold"
+          >
+            <pre style={{ color: '#e2e8f0' }}>{scriptCodeTemplate}</pre>
           </div>
         </div>
 

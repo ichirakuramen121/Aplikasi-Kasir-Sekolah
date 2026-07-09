@@ -4,7 +4,7 @@
  */
 
 import { Transaksi, AppConfig } from "../types";
-import { formatRupiah, formatBulanIndo, DAFTAR_BULAN } from "../utils";
+import { formatRupiah, formatBulanIndo, DAFTAR_BULAN, NAMA_BULAN, DAFTAR_TAHUN } from "../utils";
 import { useState } from "react";
 import { 
   Printer, 
@@ -54,25 +54,51 @@ export default function ReportsView({ transaksiList, config, onSyncFromSheet }: 
   const yearValue = String(now.getFullYear());
   
   // Filters states
-  const [selectedMonth, setSelectedMonth] = useState(`${yearValue}-${currentMonthValue}`);
+  const [selectedMonthNum, setSelectedMonthNum] = useState<string>(currentMonthValue);
+  const [selectedYearNum, setSelectedYearNum] = useState<string>(yearValue);
   const [selectedType, setSelectedType] = useState<string>("Semua");
   const [selectedMethod, setSelectedMethod] = useState<string>("Semua");
-
-  const months = [
-    { key: "Semua", label: "Semua Laporan" },
-    ...DAFTAR_BULAN
-  ];
 
   const types = ["Semua", "SPP", "Uang Gedung", "Seragam", "Kegiatan", "Lainnya"];
   const methods = ["Semua", "Cash", "Transfer"];
 
   // Filtered transactions
   const filteredTrx = transaksiList.filter(t => {
-    const matchesMonth = selectedMonth === "Semua" || t.tanggal.startsWith(selectedMonth);
+    const matchesYear = selectedYearNum === "Semua" || t.tanggal.startsWith(selectedYearNum);
+    
+    let matchesMonth = true;
+    if (selectedMonthNum !== "Semua") {
+      const parts = t.tanggal.split("-");
+      if (parts.length >= 2) {
+        if (parts[1] !== selectedMonthNum) {
+          matchesMonth = false;
+        }
+      } else {
+        matchesMonth = false;
+      }
+    }
+
     const matchesType = selectedType === "Semua" || t.jenisPembayaran === selectedType;
     const matchesMethod = selectedMethod === "Semua" || t.metode === selectedMethod;
-    return matchesMonth && matchesType && matchesMethod;
+    return matchesYear && matchesMonth && matchesType && matchesMethod;
   });
+
+  const getActiveMonthLabel = () => {
+    if (selectedMonthNum === "Semua" && selectedYearNum === "Semua") {
+      return "Semua Periode";
+    }
+    if (selectedYearNum === "Semua") {
+      const mName = NAMA_BULAN.find(m => m.key === selectedMonthNum)?.label || "";
+      return `Bulan ${mName} (Semua Tahun)`;
+    }
+    if (selectedMonthNum === "Semua") {
+      return `Tahun ${selectedYearNum} (Semua Bulan)`;
+    }
+    const mName = NAMA_BULAN.find(m => m.key === selectedMonthNum)?.label || "";
+    return `${mName} ${selectedYearNum}`;
+  };
+
+  const activeMonthLabel = getActiveMonthLabel();
 
   // Category summary for filtered items
   const summaryCategory = {
@@ -130,7 +156,7 @@ export default function ReportsView({ transaksiList, config, onSyncFromSheet }: 
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `Laporan_Pembayaran_${selectedMonth}_${selectedType}.csv`);
+    link.setAttribute("download", `Laporan_Pembayaran_${activeMonthLabel}_${selectedType}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -315,14 +341,12 @@ export default function ReportsView({ transaksiList, config, onSyncFromSheet }: 
     doc.setFontSize(7);
     doc.text("Administrasi Keuangan", 140, sigY + 32);
 
-    doc.save(`Laporan_Penerimaan_${selectedMonth}.pdf`);
+    doc.save(`Laporan_Penerimaan_${activeMonthLabel}.pdf`);
   };
 
   const handlePrintReport = () => {
     window.print();
   };
-
-  const activeMonthLabel = months.find(m => m.key === selectedMonth)?.label || selectedMonth;
 
   return (
     <div className="space-y-6 animate-fade-in text-sm text-slate-100">
@@ -334,17 +358,32 @@ export default function ReportsView({ transaksiList, config, onSyncFromSheet }: 
           <h3 className="font-bold text-white text-base">Filter Jurnal Pembayaran</h3>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
           
           <div className="space-y-1.5 animate-fade-in">
-            <label className="text-xs font-semibold text-slate-300">Rentang Bulan</label>
+            <label className="text-xs font-semibold text-slate-300">Pilih Bulan</label>
             <select
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
+              value={selectedMonthNum}
+              onChange={(e) => setSelectedMonthNum(e.target.value)}
               className="w-full px-3 py-2.5 bg-white/5 border border-white/10 text-white font-semibold rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-slate-900"
             >
-              {months.map((m) => (
-                <option key={m.key} value={m.key} className="bg-slate-900 border-none select-none text-white">{m.label}</option>
+              <option value="Semua" className="bg-slate-900 text-white">Semua Bulan</option>
+              {NAMA_BULAN.map((m) => (
+                <option key={m.key} value={m.key} className="bg-slate-900 text-white">{m.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-1.5 animate-fade-in">
+            <label className="text-xs font-semibold text-slate-300">Pilih Tahun</label>
+            <select
+              value={selectedYearNum}
+              onChange={(e) => setSelectedYearNum(e.target.value)}
+              className="w-full px-3 py-2.5 bg-white/5 border border-white/10 text-white font-semibold rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-slate-900"
+            >
+              <option value="Semua" className="bg-slate-900 text-white">Semua Tahun</option>
+              {DAFTAR_TAHUN.map((y) => (
+                <option key={y} value={y} className="bg-slate-900 text-white">Tahun {y}</option>
               ))}
             </select>
           </div>
