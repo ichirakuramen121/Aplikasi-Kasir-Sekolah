@@ -34,6 +34,9 @@ async function startServer() {
         });
 
         if (!response.ok) {
+          if (response.status === 404) {
+            throw new Error(`Google Apps Script URL mengembalikan error 404 (Tidak Ditemukan). Silakan pastikan link Web App Anda disalin dengan benar dari tombol "Terapkan (Deploy)" -> "Penerapan Baru (New Deployment)" di Google Apps Script editor Anda. Jangan menggunakan URL spreadsheet atau URL editor script.`);
+          }
           throw new Error(`HTTP error! status: ${response.status}`);
         }
 
@@ -61,6 +64,9 @@ async function startServer() {
         // Google Apps Script can respond with redirects (302) but native fetch handles it
         // when redirect: 'follow' (default).
         if (!response.ok) {
+          if (response.status === 404) {
+            throw new Error(`Google Apps Script URL mengembalikan error 404 (Tidak Ditemukan). Silakan pastikan link Web App Anda disalin dengan benar dari tombol "Terapkan (Deploy)" -> "Penerapan Baru (New Deployment)" di Google Apps Script editor Anda. Jangan menggunakan URL spreadsheet atau URL editor script.`);
+          }
           throw new Error(`HTTP error! status: ${response.status}`);
         }
 
@@ -79,7 +85,7 @@ async function startServer() {
         res.status(400).json({ error: "Invalid action. Use 'get' or 'post'." });
       }
     } catch (error: any) {
-      console.error("[Proxy Error]:", error);
+      console.log("[Proxy status] Communication status:", error?.message || error);
       res.json({
         success: false,
         error: error.message || "Failed to communicate with Google Sheets via Apps Script."

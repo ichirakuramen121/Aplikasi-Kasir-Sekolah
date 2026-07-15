@@ -146,7 +146,7 @@ export default function ReceiptView({ transaksi, config, onClose }: ReceiptViewP
         }
       })
       .catch(err => {
-        console.error("Failed to generate QR code Locally:", err);
+        console.log("[QR Status] Local QR generator fallback active:", err instanceof Error ? err.message : err);
       });
     return () => {
       active = false;

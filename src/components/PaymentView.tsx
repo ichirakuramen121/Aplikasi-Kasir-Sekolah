@@ -4,7 +4,18 @@
  */
 
 import { Siswa, Transaksi, AppConfig, BiayaSekolah } from "../types";
-import { formatRupiah, generateKuitansiNumber, DAFTAR_BULAN, formatBulanIndo, NAMA_BULAN, DAFTAR_TAHUN } from "../utils";
+import { 
+  formatRupiah, 
+  generateKuitansiNumber, 
+  DAFTAR_BULAN, 
+  formatBulanIndo, 
+  NAMA_BULAN, 
+  DAFTAR_TAHUN,
+  DAFTAR_TAHUN_PELAJARAN,
+  getMonthsForAcademicYear,
+  getAcademicYearFromCalendarKey,
+  getYearAndMonthFromAcademicYear
+} from "../utils";
 import React, { useState, useEffect, useRef } from "react";
 import { 
   Search, 
@@ -38,6 +49,25 @@ export default function PaymentView({
   const [searchQuery, setSearchQuery] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedSiswaId, setSelectedSiswaId] = useState<string | null>(null);
+
+  // Selected academic year (defaulting dynamically to current date's academic year)
+  const [selectedTahunPelajaran, setSelectedTahunPelajaran] = useState<string>(() => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth() + 1;
+    const start = month >= 7 ? year : year - 1;
+    return `${start}/${start + 1}`;
+  });
+
+  // Helper to dynamically look up the standard SPP rate from Manajemen Biaya (biayaList)
+  const getSppTarifFromBiayaList = (): number => {
+    const sppBiayaItems = biayaList.filter(b => b.kategori === 'SPP');
+    if (sppBiayaItems.length > 0) {
+      return sppBiayaItems[0].jumlah;
+    }
+    const selectedSiswa = siswaList.find(s => s.id === selectedSiswaId);
+    return selectedSiswa ? selectedSiswa.tagihanSpp : 350000;
+  };
 
   // Form Fields
   const [jenisPembayaran, setJenisPembayaran] = useState<'SPP' | 'Uang Gedung' | 'Seragam' | 'Kegiatan' | 'Lainnya'>('SPP');
@@ -103,8 +133,9 @@ export default function PaymentView({
     ? DAFTAR_BULAN.map(m => {
         const sSpp = selectedSiswa.statusSpp || {};
         const status = sSpp[m.key] || "Belum_Bayar";
+        const sppTarif = getSppTarifFromBiayaList();
         if (status === "Belum_Bayar") {
-          return { key: m.key, label: m.label, sisa: selectedSiswa.tagihanSpp, type: "Belum_Bayar" };
+          return { key: m.key, label: m.label, sisa: sppTarif, type: "Belum_Bayar" };
         } else if (typeof status === "string" && status.startsWith("Kurang:")) {
           const sisa = Number(status.split(":")[1]) || 0;
           return { key: m.key, label: m.label, sisa, type: "Kurang" };
@@ -124,28 +155,36 @@ export default function PaymentView({
   useEffect(() => {
     if (selectedSiswa) {
       const sSpp = selectedSiswa.statusSpp || {};
+      const sppTarif = getSppTarifFromBiayaList();
       if (jenisPembayaran === "SPP") {
-        // Find first unpaid month as default selection
-        const unpaidMonth = DAFTAR_BULAN.find(m => sSpp[m.key] !== "Lunas");
+        // Find first unpaid month as default selection (checking from the dynamic months first)
+        let unpaidMonth = getMonthsForAcademicYear(selectedTahunPelajaran).find(m => sSpp[m.key] !== "Lunas");
+        if (!unpaidMonth) {
+          unpaidMonth = DAFTAR_BULAN.find(m => sSpp[m.key] !== "Lunas");
+        }
+        
         if (unpaidMonth) {
+          const unpaidTP = getAcademicYearFromCalendarKey(unpaidMonth.key);
+          setSelectedTahunPelajaran(unpaidTP);
           setBulanCovered(unpaidMonth.key);
-          setKeterangan(`Pembayaran SPP Bulan ${unpaidMonth.label}`);
+          setKeterangan(`Pembayaran SPP Bulan ${unpaidMonth.label} (Th Pelajaran ${unpaidTP})`);
           
           const statusVal = String(sSpp[unpaidMonth.key] || "Belum_Bayar");
           if (statusVal.startsWith("Kurang:")) {
-            const sisa = Number(statusVal.split(":")[1]) || selectedSiswa.tagihanSpp;
+            const sisa = Number(statusVal.split(":")[1]) || sppTarif;
             setJumlah(sisa);
             setJumlahBayarSekarang(sisa);
           } else {
-            setJumlah(selectedSiswa.tagihanSpp);
-            setJumlahBayarSekarang(selectedSiswa.tagihanSpp);
+            setJumlah(sppTarif);
+            setJumlahBayarSekarang(sppTarif);
           }
         } else {
-          const lastMonth = DAFTAR_BULAN[DAFTAR_BULAN.length - 1];
+          const tpMonths = getMonthsForAcademicYear(selectedTahunPelajaran);
+          const lastMonth = tpMonths[tpMonths.length - 1];
           setBulanCovered(lastMonth.key);
-          setKeterangan(`Pembayaran SPP Bulan ${lastMonth.label}`);
-          setJumlah(selectedSiswa.tagihanSpp);
-          setJumlahBayarSekarang(selectedSiswa.tagihanSpp);
+          setKeterangan(`Pembayaran SPP Bulan ${lastMonth.label} (Th Pelajaran ${selectedTahunPelajaran})`);
+          setJumlah(sppTarif);
+          setJumlahBayarSekarang(sppTarif);
         }
         setSelectedBiayaId("");
       } else {
@@ -210,26 +249,28 @@ export default function PaymentView({
     // Auto multiply amount accounting for partial payments
     let totalAmount = 0;
     const sSpp = selectedSiswa.statusSpp || {};
+    const sppTarif = getSppTarifFromBiayaList();
     nextList.forEach((key) => {
       const statusVal = String(sSpp[key] || "Belum_Bayar");
       if (statusVal.startsWith("Kurang:")) {
-        totalAmount += Number(statusVal.split(":")[1]) || selectedSiswa.tagihanSpp;
+        totalAmount += Number(statusVal.split(":")[1]) || sppTarif;
       } else {
-        totalAmount += selectedSiswa.tagihanSpp;
+        totalAmount += sppTarif;
       }
     });
     setJumlah(totalAmount);
     
     // Auto-generate description notes
+    const tpMonths = getMonthsForAcademicYear(selectedTahunPelajaran);
     if (nextList.length === 0) {
       setKeterangan("");
     } else if (nextList.length === 1) {
-      const mLabel = DAFTAR_BULAN.find(d => d.key === nextList[0])?.label || "";
-      setKeterangan(`Pembayaran SPP Bulan ${mLabel}`);
+      const mLabel = tpMonths.find(d => d.key === nextList[0])?.label || "";
+      setKeterangan(`Pembayaran SPP Bulan ${mLabel} (Th Pelajaran ${selectedTahunPelajaran})`);
     } else {
-      const labels = nextList.map(k => DAFTAR_BULAN.find(d => d.key === k)?.label.split(" ")[0] || "").join(", ");
+      const labels = nextList.map(k => tpMonths.find(d => d.key === k)?.label.split(" ")[0] || "").join(", ");
       const years = Array.from(new Set(nextList.map(k => k.split("-")[0])));
-      setKeterangan(`Pembayaran SPP Gabungan ${nextList.length} Bulan (${labels}) Tahun ${years.join("/")}`);
+      setKeterangan(`Pembayaran SPP Gabungan ${nextList.length} Bulan (${labels}) Th Pelajaran ${selectedTahunPelajaran}`);
     }
   };
 
@@ -415,7 +456,7 @@ export default function PaymentView({
             {/* Profile Grid SPP matrix */}
             <div className="p-5 space-y-4">
               <div className="flex justify-between items-center text-xs">
-                <span className="font-bold text-slate-400 uppercase tracking-widest text-[10px]">Matriks Pelunasan SPP 2026</span>
+                <span className="font-bold text-slate-400 uppercase tracking-widest text-[10px]">Matriks Pelunasan SPP Th Pelajaran {selectedTahunPelajaran}</span>
                 <span className="text-[10px] text-slate-400 flex items-center gap-1">
                   <Clock className="size-3" /> Klik bulan berjalan untuk bayar
                 </span>
@@ -423,7 +464,7 @@ export default function PaymentView({
 
               {/* SPP Grid Matrix */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {DAFTAR_BULAN.map((m) => {
+                {getMonthsForAcademicYear(selectedTahunPelajaran).map((m) => {
                   const sSpp = selectedSiswa.statusSpp || {};
                   const status = sSpp[m.key] || "Belum_Bayar";
                   const isPaid = status === "Lunas";
@@ -479,12 +520,12 @@ export default function PaymentView({
               {/* Standard Tagihan List */}
               <div className="border-t border-white/5 pt-4 space-y-2">
                 <div className="flex justify-between text-xs">
-                  <span className="text-slate-400">Tarif Tagihan SPP Bulanan</span>
-                  <span className="font-bold text-white font-mono">{formatRupiah(selectedSiswa.tagihanSpp)} / bln</span>
+                  <span className="text-slate-400">Tarif SPP Bulanan (Manajemen Biaya)</span>
+                  <span className="font-bold text-white font-mono">{formatRupiah(getSppTarifFromBiayaList())} / bln</span>
                 </div>
                 <div className="flex justify-between text-xs">
                   <span className="text-slate-400">Angkatan Masuk</span>
-                  <span className="font-bold text-white">Tahun {selectedSiswa.angkatan}</span>
+                  <span className="font-bold text-white font-mono">Tahun {selectedSiswa.angkatan}</span>
                 </div>
               </div>
 
@@ -570,7 +611,7 @@ export default function PaymentView({
 
               {jenisPembayaran === "SPP" ? (
                 <div className="space-y-1.5 animate-fade-in text-left">
-                  <label className="text-xs font-semibold text-slate-300">SPP Bulan & Tahun Berjalan</label>
+                  <label className="text-xs font-semibold text-slate-300">SPP Bulan & Tahun Pelajaran</label>
                   <div className="grid grid-cols-2 gap-2">
                     {/* Month Select */}
                     <div className="space-y-1">
@@ -579,66 +620,95 @@ export default function PaymentView({
                         disabled={!selectedSiswa}
                         value={
                           bulanCovered.includes(",") 
-                            ? (bulanCovered.split(",")[0].split("-")[1] || "01") 
-                            : (bulanCovered.split("-")[1] || "01")
+                            ? (bulanCovered.split(",")[0].split("-")[1] || "07") 
+                            : (bulanCovered.split("-")[1] || "07")
                         }
                         onChange={(e) => {
                           const selectMonth = e.target.value;
-                          const currentYear = bulanCovered.includes(",") 
-                            ? (bulanCovered.split(",")[0].split("-")[0] || "2026") 
-                            : (bulanCovered.split("-")[0] || "2026");
-                          const nextVal = `${currentYear}-${selectMonth}`;
+                          const [startYear, endYear] = selectedTahunPelajaran.split("/");
+                          const monthNum = parseInt(selectMonth, 10);
+                          const year = (monthNum >= 7 && monthNum <= 12) ? startYear : endYear;
+                          const nextVal = `${year}-${selectMonth}`;
                           setBulanCovered(nextVal);
+                          
                           const mName = NAMA_BULAN.find(nb => nb.key === selectMonth)?.label || "";
-                          setKeterangan(`Pembayaran SPP Bulan ${mName} ${currentYear}`);
-                          if (selectedSiswa) {
-                            setJumlah(selectedSiswa.tagihanSpp);
+                          setKeterangan(`Pembayaran SPP Bulan ${mName} (Th Pelajaran ${selectedTahunPelajaran})`);
+                          
+                          // Set SPP amount automatically from school fees definition
+                          const sppTarif = getSppTarifFromBiayaList();
+                          const sSpp = selectedSiswa ? (selectedSiswa.statusSpp || {}) : {};
+                          const statusVal = String(sSpp[nextVal] || "Belum_Bayar");
+                          if (statusVal.startsWith("Kurang:")) {
+                            setJumlah(Number(statusVal.split(":")[1]) || sppTarif);
+                          } else {
+                            setJumlah(sppTarif);
                           }
                         }}
                         className="w-full px-3.5 py-2.5 bg-white/5 border border-white/10 text-white font-semibold rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                       >
-                        {NAMA_BULAN.map((m) => (
+                        {[
+                          { key: "07", label: "Juli" },
+                          { key: "08", label: "Agustus" },
+                          { key: "09", label: "September" },
+                          { key: "10", label: "Oktober" },
+                          { key: "11", label: "November" },
+                          { key: "12", label: "Desember" },
+                          { key: "01", label: "Januari" },
+                          { key: "02", label: "Februari" },
+                          { key: "03", label: "Maret" },
+                          { key: "04", label: "April" },
+                          { key: "05", label: "Mei" },
+                          { key: "06", label: "Juni" }
+                        ].map((m) => (
                           <option key={m.key} value={m.key} className="bg-slate-900 text-white">
                             {m.label}
                           </option>
                         ))}
                       </select>
                     </div>
-
-                    {/* Year Select */}
+ 
+                    {/* Academic Year Select */}
                     <div className="space-y-1">
-                      <span className="text-[10px] text-slate-400 block font-semibold">Pilih Tahun</span>
+                      <span className="text-[10px] text-slate-400 block font-semibold">Tahun Pelajaran</span>
                       <select
                         disabled={!selectedSiswa}
-                        value={
-                          bulanCovered.includes(",") 
-                            ? (bulanCovered.split(",")[0].split("-")[0] || "2026") 
-                            : (bulanCovered.split("-")[0] || "2026")
-                        }
+                        value={selectedTahunPelajaran}
                         onChange={(e) => {
-                          const selectYear = e.target.value;
+                          const tp = e.target.value;
+                          setSelectedTahunPelajaran(tp);
                           const currentMonth = bulanCovered.includes(",") 
-                            ? (bulanCovered.split(",")[0].split("-")[1] || "01") 
-                            : (bulanCovered.split("-")[1] || "01");
-                          const nextVal = `${selectYear}-${currentMonth}`;
+                            ? (bulanCovered.split(",")[0].split("-")[1] || "07") 
+                            : (bulanCovered.split("-")[1] || "07");
+                          
+                          const [startYear, endYear] = tp.split("/");
+                          const monthNum = parseInt(currentMonth, 10);
+                          const year = (monthNum >= 7 && monthNum <= 12) ? startYear : endYear;
+                          const nextVal = `${year}-${currentMonth}`;
                           setBulanCovered(nextVal);
+                          
                           const mName = NAMA_BULAN.find(nb => nb.key === currentMonth)?.label || "";
-                          setKeterangan(`Pembayaran SPP Bulan ${mName} ${selectYear}`);
-                          if (selectedSiswa) {
-                            setJumlah(selectedSiswa.tagihanSpp);
+                          setKeterangan(`Pembayaran SPP Bulan ${mName} (Th Pelajaran ${tp})`);
+                          
+                          const sppTarif = getSppTarifFromBiayaList();
+                          const sSpp = selectedSiswa ? (selectedSiswa.statusSpp || {}) : {};
+                          const statusVal = String(sSpp[nextVal] || "Belum_Bayar");
+                          if (statusVal.startsWith("Kurang:")) {
+                            setJumlah(Number(statusVal.split(":")[1]) || sppTarif);
+                          } else {
+                            setJumlah(sppTarif);
                           }
                         }}
                         className="w-full px-3.5 py-2.5 bg-white/5 border border-white/10 text-white font-semibold rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                       >
-                        {DAFTAR_TAHUN.map((y) => (
-                          <option key={y} value={y} className="bg-slate-900 text-white">
-                            Tahun {y}
+                        {DAFTAR_TAHUN_PELAJARAN.map((tp) => (
+                          <option key={tp} value={tp} className="bg-slate-900 text-white">
+                            Th Pelajaran {tp}
                           </option>
                         ))}
                       </select>
                     </div>
                   </div>
-
+ 
                   {/* Show current selection status check */}
                   {selectedSiswa && (() => {
                     const activeKey = bulanCovered.includes(",") ? bulanCovered.split(",")[0] : bulanCovered;
@@ -664,14 +734,15 @@ export default function PaymentView({
                       );
                     }
                   })()}
-
+ 
                   {/* Multi-month list visualizer badges */}
                   {selectedMonthsList.length > 0 && (
                     <div className="mt-2.5 space-y-1 animate-fade-in">
                       <span className="text-[10px] uppercase font-bold text-slate-450 block">Daftar Bulan SPP Digabungkan ({selectedMonthsList.length} bulan):</span>
                       <div className="flex flex-wrap gap-1.5">
                         {selectedMonthsList.map((key) => {
-                          const label = DAFTAR_BULAN.find(d => d.key === key)?.label || key;
+                          const tpMonths = getMonthsForAcademicYear(selectedTahunPelajaran);
+                          const label = tpMonths.find(d => d.key === key)?.label || key;
                           return (
                             <span 
                               key={key}
@@ -682,14 +753,15 @@ export default function PaymentView({
                                 const newVal = nextList.join(",");
                                 setBulanCovered(newVal);
                                 if (selectedSiswa) {
-                                  setJumlah(selectedSiswa.tagihanSpp * nextList.length);
+                                  const sppTarif = getSppTarifFromBiayaList();
+                                  setJumlah(sppTarif * nextList.length);
                                   if (nextList.length === 1) {
-                                    const mLabel = DAFTAR_BULAN.find(d => d.key === nextList[0])?.label || "";
-                                    setKeterangan(`Pembayaran SPP Bulan ${mLabel}`);
+                                    const mLabel = tpMonths.find(d => d.key === nextList[0])?.label || "";
+                                    setKeterangan(`Pembayaran SPP Bulan ${mLabel} (Th Pelajaran ${selectedTahunPelajaran})`);
                                   } else if (nextList.length > 1) {
-                                    const labels = nextList.map(k => DAFTAR_BULAN.find(d => d.key === k)?.label.split(" ")[0] || "").join(", ");
+                                    const labels = nextList.map(k => tpMonths.find(d => d.key === k)?.label.split(" ")[0] || "").join(", ");
                                     const years = Array.from(new Set(nextList.map(k => k.split("-")[0])));
-                                    setKeterangan(`Pembayaran SPP Gabungan ${nextList.length} Bulan (${labels}) Tahun ${years.join("/")}`);
+                                    setKeterangan(`Pembayaran SPP Gabungan ${nextList.length} Bulan (${labels}) Th Pelajaran ${selectedTahunPelajaran}`);
                                   } else {
                                     setKeterangan("");
                                   }

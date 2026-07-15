@@ -95,9 +95,18 @@ export default function StudentsView({
     const namaIdx = headers.indexOf("nama");
     const kelasIdx = headers.indexOf("kelas");
     const angkatanIdx = headers.indexOf("angkatan");
-    const tagihanSppIdx = headers.indexOf("tagihanspp");
-    const emailIdx = headers.indexOf("emailorangtua");
-    const telpIdx = headers.indexOf("teleponorangtua");
+    const tagihanSppIdx = headers.indexOf("tagihanspp") !== -1 ? headers.indexOf("tagihanspp") : headers.findIndex(h => h.includes("tagihan") || h.includes("spp"));
+    
+    // Find email and phone with flexible synonym matching
+    const emailIdx = headers.findIndex(h => {
+      const normalized = h.replace(/[^a-z0-9]/g, "");
+      return ["emailorangtua", "emailortu", "email_orang_tua", "email", "mail", "e-mail", "posel"].some(syn => normalized.includes(syn));
+    });
+
+    const telpIdx = headers.findIndex(h => {
+      const normalized = h.replace(/[^a-z0-9]/g, "");
+      return ["teleponorangtua", "teleponortu", "telepon_orang_tua", "telepon", "telp", "phone", "contact", "whatsapp", "wa", "nowa", "nowhatsapp", "nohp", "hp", "nomorwhatsapp", "nomorwa", "nomorhp"].some(syn => normalized.includes(syn));
+    });
     
     // If we can't find core fields, alert/fail
     if (nisIdx === -1 || namaIdx === -1) {

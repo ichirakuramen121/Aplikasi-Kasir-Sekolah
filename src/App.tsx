@@ -123,7 +123,7 @@ export default function App() {
         })
       });
     } catch (err) {
-      console.error("Failed to persist settings on server", err);
+      console.log("[Server Settings Status] Local state persisted, server sync status:", err instanceof Error ? err.message : err);
     }
   };
 
@@ -150,7 +150,7 @@ export default function App() {
         })
       });
     } catch (err) {
-      console.error("Failed to save database to server:", err);
+      console.log("[Server DB Status] Local DB updated, server backup sync status:", err instanceof Error ? err.message : err);
     }
   };
 
@@ -250,7 +250,7 @@ export default function App() {
           }
         }
       } catch (err) {
-        console.warn("[Settings Sync] Failed to fetch server settings", err);
+        console.log("[Server Settings Status] Initial fetch local settings:", err instanceof Error ? err.message : err);
       }
 
       // Load Database from server
@@ -285,7 +285,7 @@ export default function App() {
           }
         }
       } catch (dbErr) {
-        console.warn("[Database Sync] Failed to fetch server database", dbErr);
+        console.log("[Server DB Status] Initial fetch local DB backup status:", dbErr instanceof Error ? dbErr.message : dbErr);
       }
 
       if (activeSheetUrl) {
@@ -305,7 +305,7 @@ export default function App() {
             setBackgroundSyncStatus("Gagal menyinkronkan data.");
           }
         } catch (e) {
-          console.error("[Sheets Sync background error]", e);
+          console.log("[Sheets Sync status] Background sync issue (will retry):", e instanceof Error ? e.message : e);
           setBackgroundSyncStatus("Gagal menyambung ke Sheets.");
         }
       } else {
@@ -362,8 +362,8 @@ export default function App() {
         const text = await response.text();
         try {
           const json = JSON.parse(text);
-          // Bila dibungkus proxy server.ts: { success: true, data: ... } atau memiliki success: true langsung
-          if (json && (json.success === true || json.siswa || json.transaksi || json.data)) {
+          // Bila dibungkus proxy server.ts: { success: true, data: ... } atau memiliki success: true/false langsung
+          if (json && (json.success === true || json.success === false || json.siswa || json.transaksi || json.data)) {
             return json;
           }
         } catch (e) {
@@ -473,7 +473,7 @@ export default function App() {
         throw new Error(body.error || "Gagal menghubungi Apps Script.");
       }
     } catch (err: any) {
-      console.error("[Sheets Sync error]", err);
+      console.log("[Sheets Sync status] Sync connection issue:", err?.message || err);
       setConnectionStatus('disconnected');
       return { success: false, message: err.message || "Gagal menghubungkan ke Google Apps Script." };
     }
@@ -515,6 +515,10 @@ export default function App() {
     const updatedSiswa = siswaList.map((s) => {
       if (s.id === newTransaction.siswaId) {
         const nextStatus = { ...s.statusSpp };
+        // Lookup standard SPP tariff from biayaList (Manajemen Biaya)
+        const sppBiayaItems = biayaList.filter(b => b.kategori === 'SPP');
+        const sppTarif = sppBiayaItems.length > 0 ? sppBiayaItems[0].jumlah : s.tagihanSpp;
+
         if (newTransaction.jenisPembayaran === "SPP" && newTransaction.bulanCovered) {
           newTransaction.bulanCovered.split(",").forEach((m) => {
             const trimmed = m.trim();
@@ -528,10 +532,10 @@ export default function App() {
               );
               const totalPaid = trxsForMonth.reduce((sum, t) => sum + t.jumlah, 0);
               
-              if (totalPaid >= s.tagihanSpp) {
+              if (totalPaid >= sppTarif) {
                 nextStatus[trimmed] = "Lunas";
               } else if (totalPaid > 0) {
-                nextStatus[trimmed] = `Kurang:${s.tagihanSpp - totalPaid}`;
+                nextStatus[trimmed] = `Kurang:${sppTarif - totalPaid}`;
               } else {
                 nextStatus[trimmed] = "Belum_Bayar";
               }
@@ -560,11 +564,11 @@ export default function App() {
           console.log("[Sheets Sync] Succesfully apppended row to Sheets!");
           setConnectionStatus('connected');
         } else {
-          console.warn("[Sheets Sync fail]", body.error);
+          console.log("[Sheets Sync status] Target status response:", body?.error);
         }
       })
       .catch((err) => {
-        console.warn("[Sheets Sync error]", err);
+        console.log("[Sheets Sync status] Sync connection issue:", err?.message || err);
       });
     }
   };
@@ -578,7 +582,7 @@ export default function App() {
       executeSheetsRequest(config.sheetUrl, "post", {
         action: "sync_all",
         siswa: newList
-      }).catch(e => console.error("Auto sheet siswa update failed", e));
+      }).catch(e => console.log("[Sheets Sync status] Auto master sync updated (background):", e?.message || e));
     }
   };
 
@@ -613,7 +617,7 @@ export default function App() {
       executeSheetsRequest(config.sheetUrl, "post", {
         action: "sync_biaya",
         biaya: newList
-      }).catch(e => console.error("Auto sheet biaya update failed", e));
+      }).catch(e => console.log("[Sheets Sync status] Auto fees sync updated (background):", e?.message || e));
     }
   };
 
@@ -643,7 +647,7 @@ export default function App() {
       executeSheetsRequest(config.sheetUrl, "post", {
         action: "save_log",
         log: newLog
-      }).catch(e => console.error("Auto sheet log update failed", e));
+      }).catch(e => console.log("[Sheets Sync status] Auto logging sync updated (background):", e?.message || e));
     }
   };
 

@@ -117,6 +117,71 @@ export const DAFTAR_BULAN = [
   { key: "2026-06", label: "Juni 2026" }
 ];
 
+/**
+ * List of academic years available in the system
+ */
+export const DAFTAR_TAHUN_PELAJARAN = [
+  "2023/2024",
+  "2024/2025",
+  "2025/2026",
+  "2026/2027",
+  "2027/2028",
+  "2028/2029"
+];
+
+/**
+ * Returns the 12 academic months (July - June) for a given academic year.
+ * e.g., "2025/2026" -> [ { key: "2025-07", label: "Juli 2025" }, ... ]
+ */
+export function getMonthsForAcademicYear(academicYear: string) {
+  const [startYear, endYear] = academicYear.split("/");
+  return [
+    { key: `${startYear}-07`, label: `Juli ${startYear}` },
+    { key: `${startYear}-08`, label: `Agustus ${startYear}` },
+    { key: `${startYear}-09`, label: `September ${startYear}` },
+    { key: `${startYear}-10`, label: `Oktober ${startYear}` },
+    { key: `${startYear}-11`, label: `November ${startYear}` },
+    { key: `${startYear}-12`, label: `Desember ${startYear}` },
+    { key: `${endYear}-01`, label: `Januari ${endYear}` },
+    { key: `${endYear}-02`, label: `Februari ${endYear}` },
+    { key: `${endYear}-03`, label: `Maret ${endYear}` },
+    { key: `${endYear}-04`, label: `April ${endYear}` },
+    { key: `${endYear}-05`, label: `Mei ${endYear}` },
+    { key: `${endYear}-06`, label: `Juni ${endYear}` }
+  ];
+}
+
+/**
+ * Determines the academic year YYYY/YYYY based on a calendar YYYY-MM key.
+ * e.g., "2026-03" -> "2025/2026"
+ * e.g., "2025-08" -> "2025/2026"
+ */
+export function getAcademicYearFromCalendarKey(calendarKey: string): string {
+  const parts = calendarKey.split("-");
+  if (parts.length !== 2) return "2025/2026"; // Fallback default
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10);
+  if (month >= 7 && month <= 12) {
+    return `${year}/${year + 1}`;
+  } else {
+    return `${year - 1}/${year}`;
+  }
+}
+
+/**
+ * Given academic year "2025/2026" and month key "03", returns calendar key "2026-03"
+ */
+export function getYearAndMonthFromAcademicYear(academicYear: string, monthKey: string): string {
+  const [startYear, endYear] = academicYear.split("/");
+  const monthNum = parseInt(monthKey, 10);
+  const formattedMonthKey = String(monthNum).padStart(2, '0');
+  if (monthNum >= 7 && monthNum <= 12) {
+    return `${startYear}-${formattedMonthKey}`;
+  } else {
+    return `${endYear}-${formattedMonthKey}`;
+  }
+}
+
 export const NAMA_BULAN = [
   { key: "01", label: "Januari" },
   { key: "02", label: "Februari" },
