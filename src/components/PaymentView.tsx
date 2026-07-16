@@ -562,33 +562,6 @@ export default function PaymentView({
           </div>
 
           <div className="p-6 space-y-5">
-
-            {/* Arrears warning message block */}
-            {selectedSiswa && totalTunggakan > 0 && (
-              <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 space-y-2 text-left animate-fade-in">
-                <div className="flex items-center gap-2 text-amber-400">
-                  <AlertCircle className="size-4 shrink-0" strokeWidth={2.5} />
-                  <span className="text-xs font-bold font-sans uppercase tracking-wider">Perhatian: Siswa Memiliki Tunggakan SPP!</span>
-                </div>
-                <p className="text-xs text-slate-300 font-medium">
-                  Siswa ini memiliki total sisa tunggakan SPP sebesar <b className="text-amber-400 font-extrabold font-mono text-xs">{formatRupiah(totalTunggakan)}</b> dari tagihan sebelumnya:
-                </p>
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {tunggakanList.map((item) => (
-                    <span 
-                      key={item.key} 
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold border font-mono ${
-                        item.type === "Kurang" 
-                          ? "bg-amber-500/15 border-amber-500/25 text-amber-450" 
-                          : "bg-red-500/10 border-red-500/15 text-red-500"
-                      }`}
-                    >
-                      {item.label.split(" ")[0]} ({item.type === "Kurang" ? `Kurang ${formatRupiah(item.sisa)}` : "Belum Bayar"})
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
             
             {/* Row 1: Category and Target SPP selection */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
