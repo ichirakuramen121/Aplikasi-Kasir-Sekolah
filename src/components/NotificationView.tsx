@@ -334,6 +334,47 @@ export default function NotificationView({
     });
   };
 
+  const handleDirectEmail = (siswa: Siswa, tagihanName: string, total: number, bulanKey?: string) => {
+    const address = siswa.emailOrangTua || "";
+    if (!address || address === "-") {
+      alert(`Email orang tua belum diset untuk siswa ${siswa.nama}! Harap edit biodata siswa terlebih dahulu.`);
+      return;
+    }
+
+    // Get the first Email template or default
+    const emailTemplates = templates.filter(t => t.type === 'Email');
+    const templateContent = emailTemplates.length > 0 ? emailTemplates[0].content : reminderConfig.emailTemplate;
+    
+    const compiledText = compileTemplate(
+      templateContent,
+      siswa,
+      tagihanName,
+      total,
+      "Tanggal 10 " + (bulanKey || tagihanName),
+      bulanKey
+    );
+
+    // Capture Log
+    const newLog: NotifikasiLog = {
+      id: `log-${Date.now()}`,
+      siswaId: siswa.id,
+      siswaNama: siswa.nama,
+      tipe: 'Email',
+      kontakTujuan: address,
+      pesan: compiledText,
+      tanggalKirim: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      status: 'Sukses'
+    };
+    
+    // Dispatch
+    onAddLog(newLog);
+
+    // Direct redirection via mailto using standard window.location.href (reliable in iframe/browsers)
+    const subjectText = encodeURIComponent(`Pengingat Pembayaran Sekolah - ${siswa.nama}`);
+    const mailtoUrl = `mailto:${address}?subject=${subjectText}&body=${encodeURIComponent(compiledText)}`;
+    window.location.href = mailtoUrl;
+  };
+
   const handleSendCustomMessage = () => {
     if (!activeTemplatePreview) return;
     const { siswa, type } = activeTemplatePreview;
@@ -369,12 +410,10 @@ export default function NotificationView({
       const waUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(customMsgText)}`;
       window.open(waUrl, '_blank');
     } else {
-      // Simulate direct email trigger (mailto)
+      // Direct email trigger using standard window.location.href
       const subjectText = encodeURIComponent(`Pengingat Pembayaran Sekolah - ${siswa.nama}`);
       const mailtoUrl = `mailto:${address}?subject=${subjectText}&body=${encodeURIComponent(customMsgText)}`;
-      const a = document.createElement('a');
-      a.href = mailtoUrl;
-      a.click();
+      window.location.href = mailtoUrl;
     }
 
     setActiveTemplatePreview(null);
@@ -723,9 +762,9 @@ export default function NotificationView({
                           </button>
 
                           <button
-                            onClick={() => handleOpenPreviewModal(s, `Iuran SPP (${unpaidMonthsDisplay})`, item.totalTunggakanSpp, `Tanggal 10 Bulanan`, 'Email', latestMonth)}
+                            onClick={() => handleDirectEmail(s, `Iuran SPP (${unpaidMonthsDisplay})`, item.totalTunggakanSpp, latestMonth)}
                             className="p-1 px-2 text-[10px] bg-blue-500/10 text-blue-350 hover:bg-blue-600 hover:text-white border border-blue-500/20 rounded font-semibold cursor-pointer flex items-center gap-1 transition-all"
-                            title="Kirim Email Pengingat"
+                            title="Kirim Email Pengingat (Buka Email Admin)"
                           >
                             <Mail className="size-3" />
                             <span>Email</span>
