@@ -4,7 +4,7 @@
  */
 
 import { Siswa, Transaksi, AppConfig } from "../types";
-import { formatRupiah, DAFTAR_BULAN, formatBulanIndo } from "../utils";
+import { formatRupiah, DAFTAR_BULAN, formatBulanIndo, getOnlyDate } from "../utils";
 import { 
   TrendingUp, 
   Users, 
@@ -538,7 +538,7 @@ export default function DashboardView({
                     >
                       <td className="py-3 px-3 font-mono text-[11px] font-semibold text-slate-300">
                         {t.id}
-                        <span className="block text-[9px] text-slate-450 mt-0.5">{t.tanggal.split(" ")[0]}</span>
+                        <span className="block text-[9px] text-slate-450 mt-0.5">{getOnlyDate(t.tanggal)}</span>
                       </td>
                       <td className="py-3 px-3">
                         <span className="font-semibold text-slate-200 block">{t.siswaNama}</span>

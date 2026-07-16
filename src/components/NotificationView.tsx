@@ -370,8 +370,11 @@ export default function NotificationView({
       window.open(waUrl, '_blank');
     } else {
       // Simulate direct email trigger (mailto)
-      const mailtoUrl = `mailto:${address}?subject=Pengingat Pembayaran Sekolah - ${siswa.nama}&body=${encodeURIComponent(customMsgText)}`;
-      window.open(mailtoUrl, '_blank');
+      const subjectText = encodeURIComponent(`Pengingat Pembayaran Sekolah - ${siswa.nama}`);
+      const mailtoUrl = `mailto:${address}?subject=${subjectText}&body=${encodeURIComponent(customMsgText)}`;
+      const a = document.createElement('a');
+      a.href = mailtoUrl;
+      a.click();
     }
 
     setActiveTemplatePreview(null);

@@ -198,3 +198,29 @@ export const NAMA_BULAN = [
 ];
 
 export const DAFTAR_TAHUN = ["2023", "2024", "2025", "2026", "2027", "2028"];
+
+/**
+ * Extracts only the date part (YYYY-MM-DD) from a string that could be "YYYY-MM-DD HH:mm:ss" or ISO string "YYYY-MM-DDTHH:mm:ss.sssZ"
+ */
+export function getOnlyDate(tanggal: string): string {
+  if (!tanggal) return "";
+  if (tanggal.includes("T")) {
+    return tanggal.split("T")[0];
+  }
+  return tanggal.split(" ")[0];
+}
+
+/**
+ * Formats a raw date string to a clean standard string "YYYY-MM-DD HH:mm:ss"
+ */
+export function formatDateTimeClean(tanggal: string): string {
+  if (!tanggal) return "";
+  if (tanggal.includes("T")) {
+    const parts = tanggal.split("T");
+    const datePart = parts[0];
+    const timePart = parts[1].substring(0, 8); // e.g., "17:00:00"
+    return `${datePart} ${timePart}`;
+  }
+  return tanggal;
+}
+

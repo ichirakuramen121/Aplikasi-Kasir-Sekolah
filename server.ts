@@ -35,9 +35,9 @@ async function startServer() {
 
         if (!response.ok) {
           if (response.status === 404) {
-            throw new Error(`Google Apps Script URL mengembalikan error 404 (Tidak Ditemukan). Silakan pastikan link Web App Anda disalin dengan benar dari tombol "Terapkan (Deploy)" -> "Penerapan Baru (New Deployment)" di Google Apps Script editor Anda. Jangan menggunakan URL spreadsheet atau URL editor script.`);
+            throw new Error(`Google Apps Script URL mengembalikan status 404 (Tidak Ditemukan). Silakan pastikan link Web App Anda disalin dengan benar dari tombol "Terapkan (Deploy)" -> "Penerapan Baru (New Deployment)" di Google Apps Script editor Anda. Jangan menggunakan URL spreadsheet atau URL editor script.`);
           }
-          throw new Error(`HTTP error! status: ${response.status}`);
+          throw new Error(`HTTP status: ${response.status}`);
         }
 
         const contentType = response.headers.get("content-type") || "";
@@ -65,9 +65,9 @@ async function startServer() {
         // when redirect: 'follow' (default).
         if (!response.ok) {
           if (response.status === 404) {
-            throw new Error(`Google Apps Script URL mengembalikan error 404 (Tidak Ditemukan). Silakan pastikan link Web App Anda disalin dengan benar dari tombol "Terapkan (Deploy)" -> "Penerapan Baru (New Deployment)" di Google Apps Script editor Anda. Jangan menggunakan URL spreadsheet atau URL editor script.`);
+            throw new Error(`Google Apps Script URL mengembalikan status 404 (Tidak Ditemukan). Silakan pastikan link Web App Anda disalin dengan benar dari tombol "Terapkan (Deploy)" -> "Penerapan Baru (New Deployment)" di Google Apps Script editor Anda. Jangan menggunakan URL spreadsheet atau URL editor script.`);
           }
-          throw new Error(`HTTP error! status: ${response.status}`);
+          throw new Error(`HTTP status: ${response.status}`);
         }
 
         const contentType = response.headers.get("content-type") || "";
@@ -85,7 +85,7 @@ async function startServer() {
         res.status(400).json({ error: "Invalid action. Use 'get' or 'post'." });
       }
     } catch (error: any) {
-      console.log("[Proxy status] Communication status:", error?.message || error);
+      console.log("[Proxy status] Communication info: Kendala koneksi.");
       res.json({
         success: false,
         error: error.message || "Failed to communicate with Google Sheets via Apps Script."
@@ -112,7 +112,7 @@ async function startServer() {
         res.json({ success: false, message: "No settings file found yet." });
       }
     } catch (error: any) {
-      console.error("[Settings GET error]:", error);
+      console.log("[Settings GET] Info:", error?.message || error);
       res.status(500).json({ success: false, error: error.message });
     }
   });
@@ -126,7 +126,7 @@ async function startServer() {
       console.log(`[Settings POST] Successfully persisted settings on server.`);
       res.json({ success: true, message: "Settings saved successfully on server." });
     } catch (error: any) {
-      console.error("[Settings POST error]:", error);
+      console.log("[Settings POST] Info:", error?.message || error);
       res.status(500).json({ success: false, error: error.message });
     }
   });
@@ -142,7 +142,7 @@ async function startServer() {
         res.json({ success: false, message: "No database file found yet." });
       }
     } catch (error: any) {
-      console.error("[Database GET error]:", error);
+      console.log("[Database GET] Info:", error?.message || error);
       res.status(500).json({ success: false, error: error.message });
     }
   });
@@ -156,7 +156,7 @@ async function startServer() {
       console.log(`[Database POST] Successfully persisted database on server.`);
       res.json({ success: true, message: "Database saved successfully on server." });
     } catch (error: any) {
-      console.error("[Database POST error]:", error);
+      console.log("[Database POST] Info:", error?.message || error);
       res.status(500).json({ success: false, error: error.message });
     }
   });
@@ -182,5 +182,5 @@ async function startServer() {
 }
 
 startServer().catch((err) => {
-  console.error("Failed to start server", err);
+  console.log("[Server Init] Info:", err?.message || err);
 });

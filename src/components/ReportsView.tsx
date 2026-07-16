@@ -4,7 +4,7 @@
  */
 
 import { Transaksi, AppConfig } from "../types";
-import { formatRupiah, formatBulanIndo, DAFTAR_BULAN, NAMA_BULAN, DAFTAR_TAHUN } from "../utils";
+import { formatRupiah, formatBulanIndo, DAFTAR_BULAN, NAMA_BULAN, DAFTAR_TAHUN, getOnlyDate, formatDateTimeClean } from "../utils";
 import { useState } from "react";
 import { 
   Printer, 
@@ -292,7 +292,7 @@ export default function ReportsView({ transaksiList, config, onSyncFromSheet }: 
       t.bulanCovered ? `${t.jenisPembayaran}\n(${formatBulanIndo(t.bulanCovered).split(" ")[0]})` : t.jenisPembayaran,
       formatRupiah(t.jumlah).replace(",00", ""),
       t.metode,
-      t.tanggal.split(" ")[0],
+      getOnlyDate(t.tanggal),
       t.penerima.split(" ")[0]
     ]);
 
@@ -649,7 +649,7 @@ export default function ReportsView({ transaksiList, config, onSyncFromSheet }: 
                       {t.metode}
                     </span>
                   </td>
-                  <td className="py-3 px-4 text-xs font-mono text-slate-400">{t.tanggal}</td>
+                  <td className="py-3 px-4 text-xs font-mono text-slate-400">{formatDateTimeClean(t.tanggal)}</td>
                   <td className="py-3 px-4 text-xs font-medium text-slate-350">{t.penerima.split(" ")[0]}</td>
                 </tr>
               ))}
@@ -755,7 +755,7 @@ export default function ReportsView({ transaksiList, config, onSyncFromSheet }: 
                 <td style={{ padding: "6px" }}>{t.jenisPembayaran} {t.bulanCovered ? `(${formatBulanIndo(t.bulanCovered).split(" ")[0]})` : ""}</td>
                 <td style={{ padding: "6px", textAlign: "right", fontWeight: "bold" }}>{formatRupiah(t.jumlah).replace("Rp", "")}</td>
                 <td style={{ padding: "6px", textAlign: "center" }}>{t.metode}</td>
-                <td style={{ padding: "6px" }}>{t.tanggal.split(" ")[0]}</td>
+                <td style={{ padding: "6px" }}>{getOnlyDate(t.tanggal)}</td>
                 <td style={{ padding: "6px" }}>{t.penerima.split(" ")[0]}</td>
               </tr>
             ))}
