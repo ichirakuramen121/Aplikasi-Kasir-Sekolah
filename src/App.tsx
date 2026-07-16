@@ -326,6 +326,34 @@ export default function App() {
   }, []);
 
   // Sync variables to localStorage when changed locally
+  const saveLocalDatabaseState = (
+    newSiswa: Siswa[],
+    newTransaksi: Transaksi[],
+    newBiaya?: BiayaSekolah[],
+    newLogs?: NotifikasiLog[]
+  ) => {
+    setSiswaList(newSiswa);
+    setTransaksiList(newTransaksi);
+    localStorage.setItem("KAS_SEKOLAH_SISWA", JSON.stringify(newSiswa));
+    localStorage.setItem("KAS_SEKOLAH_TRANSAKSI", JSON.stringify(newTransaksi));
+    
+    if (newBiaya) {
+      setBiayaList(newBiaya);
+      localStorage.setItem("KAS_SEKOLAH_BIAYA", JSON.stringify(newBiaya));
+    }
+    if (newLogs) {
+      setNotificationLogs(newLogs);
+      localStorage.setItem("KAS_SEKOLAH_LOGS", JSON.stringify(newLogs));
+    }
+
+    saveGlobalDatabaseOnServer(
+      newSiswa,
+      newTransaksi,
+      newBiaya !== undefined ? newBiaya : biayaList,
+      newLogs !== undefined ? newLogs : notificationLogs
+    );
+  };
+
   const saveLocalSiswa = (list: Siswa[]) => {
     setSiswaList(list);
     localStorage.setItem("KAS_SEKOLAH_SISWA", JSON.stringify(list));
@@ -513,7 +541,6 @@ export default function App() {
   const handleProcessPayment = async (newTransaction: Transaksi) => {
     // 1. Save local transaction list
     const updatedTrx = [...transaksiList, newTransaction];
-    saveLocalTransaksi(updatedTrx);
 
     // 2. Update Student status locally
     const updatedSiswa = siswaList.map((s) => {
@@ -550,7 +577,9 @@ export default function App() {
       }
       return s;
     });
-    saveSiswaMaster(updatedSiswa);
+
+    // Save both simultaneously to prevent stale state server overwrites
+    saveLocalDatabaseState(updatedSiswa, updatedTrx);
 
     // 3. Trigger receipt view modal instantly
     setActiveReceipt(newTransaction);
@@ -575,6 +604,81 @@ export default function App() {
         console.log("[Sheets Sync status] Sync connection issue:", err?.message || err);
       });
     }
+  };
+
+  // --- DELETE TRANSACTION (KASIR DELETE) ---
+  const handleDeleteTransaction = async (id: string): Promise<{ success: boolean; message: string }> => {
+    const trxToDelete = transaksiList.find(t => t.id === id);
+    if (!trxToDelete) {
+      return { success: false, message: "Transaksi tidak ditemukan." };
+    }
+
+    // 1. Save local transaction list
+    const updatedTrx = transaksiList.filter((t) => t.id !== id);
+
+    // 2. Update Student status locally
+    const updatedSiswa = siswaList.map((s) => {
+      if (s.id === trxToDelete.siswaId) {
+        const nextStatus = { ...s.statusSpp };
+        // Lookup standard SPP tariff from biayaList (Manajemen Biaya)
+        const sppBiayaItems = biayaList.filter(b => b.kategori === 'SPP');
+        const sppTarif = sppBiayaItems.length > 0 ? sppBiayaItems[0].jumlah : s.tagihanSpp;
+
+        if (trxToDelete.jenisPembayaran === "SPP" && trxToDelete.bulanCovered) {
+          trxToDelete.bulanCovered.split(",").forEach((m) => {
+            const trimmed = m.trim();
+            if (trimmed) {
+              // Calculate total paid for this specific month from entire remaining history
+              const trxsForMonth = updatedTrx.filter(t => 
+                t.siswaId === s.id && 
+                t.jenisPembayaran === "SPP" && 
+                t.bulanCovered && 
+                t.bulanCovered.split(",").map(x => x.trim()).includes(trimmed)
+              );
+              const totalPaid = trxsForMonth.reduce((sum, t) => sum + t.jumlah, 0);
+              
+              if (totalPaid >= sppTarif) {
+                nextStatus[trimmed] = "Lunas";
+              } else if (totalPaid > 0) {
+                nextStatus[trimmed] = `Kurang:${sppTarif - totalPaid}`;
+              } else {
+                nextStatus[trimmed] = "Belum_Bayar";
+              }
+            }
+          });
+        }
+        return { ...s, statusSpp: nextStatus };
+      }
+      return s;
+    });
+    
+    // Save both simultaneously to prevent stale state server overwrites
+    saveLocalDatabaseState(updatedSiswa, updatedTrx);
+
+    // 3. Sync full database back to Google Sheets in background
+    if (config.sheetUrl) {
+      console.log("[Sheets Sync] Syncing updated database in background...");
+      executeSheetsRequest(config.sheetUrl, "post", {
+        action: "sync_all",
+        siswa: updatedSiswa,
+        transaksi: updatedTrx,
+        biaya: biayaList,
+        logs: notificationLogs
+      })
+      .then((body) => {
+        if (body.success) {
+          console.log("[Sheets Sync] Successfully synchronized updated database to Sheets!");
+          setConnectionStatus('connected');
+        } else {
+          console.log("[Sheets Sync status] Target status response:", body?.error);
+        }
+      })
+      .catch((err) => {
+        console.log("[Sheets Sync status] Sync connection issue:", err?.message || err);
+      });
+    }
+
+    return { success: true, message: "Transaksi berhasil dihapus." };
   };
 
   // Master update
@@ -981,6 +1085,7 @@ export default function App() {
                   config={config}
                   onNavigateToPayment={handleNavigateToPayment}
                   onReprintReceipt={(trx) => setActiveReceipt(trx)}
+                  onDeleteTransaction={handleDeleteTransaction}
                 />
               )}
 
@@ -1031,6 +1136,7 @@ export default function App() {
                   onSyncFromSheet={async () => {
                     return await testSheetConnection(config.sheetUrl, siswaList, transaksiList, biayaList, notificationLogs, true);
                   }}
+                  onDeleteTransaction={handleDeleteTransaction}
                 />
               )}
 

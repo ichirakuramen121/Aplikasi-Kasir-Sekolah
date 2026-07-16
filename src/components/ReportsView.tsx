@@ -17,7 +17,9 @@ import {
   CreditCard,
   Coins,
   ArrowRightLeft,
-  RefreshCw
+  RefreshCw,
+  Trash2,
+  AlertCircle
 } from "lucide-react";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -26,12 +28,34 @@ interface ReportsViewProps {
   transaksiList: Transaksi[];
   config: AppConfig;
   onSyncFromSheet?: () => Promise<{ success: boolean; message: string }>;
+  onDeleteTransaction?: (id: string) => Promise<{ success: boolean; message: string }>;
 }
 
-export default function ReportsView({ transaksiList, config, onSyncFromSheet }: ReportsViewProps) {
+export default function ReportsView({ transaksiList, config, onSyncFromSheet, onDeleteTransaction }: ReportsViewProps) {
   
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncFeedback, setSyncFeedback] = useState<{ success: boolean; message: string } | null>(null);
+  const [transactionToDelete, setTransactionToDelete] = useState<Transaksi | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const handleDeleteConfirm = async () => {
+    if (!transactionToDelete || !onDeleteTransaction) return;
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      const result = await onDeleteTransaction(transactionToDelete.id);
+      if (result.success) {
+        setTransactionToDelete(null);
+      } else {
+        setDeleteError(result.message || "Gagal menghapus transaksi.");
+      }
+    } catch (err: any) {
+      setDeleteError(err.message || "Gagal menghapus transaksi.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const handleSyncFromSheet = async () => {
     if (!onSyncFromSheet) return;
@@ -618,6 +642,7 @@ export default function ReportsView({ transaksiList, config, onSyncFromSheet }: 
                 <th className="py-2.5 px-4 text-center font-bold">Metode</th>
                 <th className="py-2.5 px-4 font-bold">Tanggal Jurnal</th>
                 <th className="py-2.5 px-4 font-bold">Petugas</th>
+                <th className="py-2.5 px-4 text-center font-bold">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5 text-slate-200">
@@ -651,12 +676,26 @@ export default function ReportsView({ transaksiList, config, onSyncFromSheet }: 
                   </td>
                   <td className="py-3 px-4 text-xs font-mono text-slate-400">{formatDateTimeClean(t.tanggal)}</td>
                   <td className="py-3 px-4 text-xs font-medium text-slate-350">{t.penerima.split(" ")[0]}</td>
+                  <td className="py-3 px-4 text-center">
+                    {onDeleteTransaction && (
+                      <button
+                        onClick={() => {
+                          setDeleteError(null);
+                          setTransactionToDelete(t);
+                        }}
+                        className="p-1.5 text-red-400 hover:text-white border border-red-500/10 hover:bg-red-500/20 hover:border-red-500/30 rounded-lg transition-all cursor-pointer inline-flex items-center justify-center"
+                        title="Hapus Transaksi"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
 
               {filteredTrx.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-slate-405 text-xs italic">
+                  <td colSpan={9} className="py-12 text-center text-slate-405 text-xs italic">
                     Belum ada catatan transaksi pada filter terpilih.
                   </td>
                 </tr>
@@ -670,6 +709,75 @@ export default function ReportsView({ transaksiList, config, onSyncFromSheet }: 
         </div>
 
       </div>
+
+      {/* --- CONFIRMATION DELETE MODAL --- */}
+      {transactionToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-md bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
+            <div className="p-6 space-y-4">
+              <div className="flex items-center gap-3 text-red-400">
+                <AlertCircle className="size-6 shrink-0" />
+                <h3 className="text-base font-bold text-white">Konfirmasi Hapus Transaksi</h3>
+              </div>
+              
+              <div className="p-3 bg-red-500/10 rounded-xl border border-red-500/25 space-y-2 text-xs text-slate-300">
+                <p><strong>PERINGATAN:</strong> Tindakan ini tidak dapat dibatalkan. Menghapus transaksi akan mengurangi total penerimaan kas dan memulihkan status tagihan siswa yang bersangkutan.</p>
+              </div>
+
+              <div className="space-y-2 text-xs">
+                <div className="flex justify-between border-b border-white/5 py-1.5">
+                  <span className="text-slate-400">No. Jurnal (Kuitansi):</span>
+                  <span className="font-mono font-semibold text-white">{transactionToDelete.id}</span>
+                </div>
+                <div className="flex justify-between border-b border-white/5 py-1.5">
+                  <span className="text-slate-400">Nama Siswa / NIS:</span>
+                  <span className="font-semibold text-white">{transactionToDelete.siswaNama} ({transactionToDelete.siswaNis})</span>
+                </div>
+                <div className="flex justify-between border-b border-white/5 py-1.5">
+                  <span className="text-slate-400">Jenis Pembayaran:</span>
+                  <span className="font-semibold text-slate-200">
+                    {transactionToDelete.jenisPembayaran}
+                    {transactionToDelete.bulanCovered && ` (${formatBulanIndo(transactionToDelete.bulanCovered).split(" ")[0]})`}
+                  </span>
+                </div>
+                <div className="flex justify-between border-b border-white/5 py-1.5">
+                  <span className="text-slate-400">Nominal:</span>
+                  <span className="font-mono font-bold text-emerald-400">{formatRupiah(transactionToDelete.jumlah)}</span>
+                </div>
+                <div className="flex justify-between py-1.5">
+                  <span className="text-slate-400">Metode Bayar:</span>
+                  <span className="font-semibold text-white">{transactionToDelete.metode}</span>
+                </div>
+              </div>
+
+              {deleteError && (
+                <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-300 text-xs rounded-xl">
+                  {deleteError}
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setTransactionToDelete(null)}
+                  disabled={isDeleting}
+                  className="flex-1 py-2 bg-white/5 hover:bg-white/10 active:bg-white/15 border border-white/10 text-white font-semibold rounded-xl text-xs transition-colors cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteConfirm}
+                  disabled={isDeleting}
+                  className="flex-1 py-2 bg-red-600 hover:bg-red-700 active:bg-red-800 disabled:bg-red-600/50 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer inline-flex items-center justify-center gap-1.5"
+                >
+                  {isDeleting ? "Menghapus..." : "Hapus Permanen"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* --- DUPLICATE PRINTABLE REPORT PANEL --- */}
       {/* This element will be targeted by @media print in index.css */}
