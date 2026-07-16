@@ -43,6 +43,8 @@ export interface AppConfig {
   pemilikRekening?: string;
   merchantId?: string;
   logoSekolah?: string;
+  namaKepalaSekolah?: string;
+  nipKepalaSekolah?: string;
 }
 
 export interface BiayaSekolah {

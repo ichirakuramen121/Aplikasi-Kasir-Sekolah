@@ -56,7 +56,9 @@ export default function App() {
     penerimaDefault: "Alya Safitri (Bendahara)",
     namaBank: "Bank Syariah Indonesia (BSI)",
     rekeningBank: "7123456789",
-    pemilikRekening: "Bendahara SMA Nusantara Mandiri"
+    pemilikRekening: "Bendahara SMA Nusantara Mandiri",
+    namaKepalaSekolah: "Drs. H. Mulyadi",
+    nipKepalaSekolah: "196805121993021003"
   });
 
   const [activeReceipt, setActiveReceipt] = useState<Transaksi | null>(null);
@@ -99,6 +101,8 @@ export default function App() {
   const [setOpenPemilikRekening, setSetOpenPemilikRekening] = useState("");
   const [setOpenMerchantId, setSetOpenMerchantId] = useState("");
   const [setOpenLogo, setSetOpenLogo] = useState("");
+  const [setOpenNamaKepala, setSetOpenNamaKepala] = useState("");
+  const [setOpenNipKepala, setSetOpenNipKepala] = useState("");
   const [setOpenUsername, setSetOpenUsername] = useState("");
   const [setOpenPassword, setSetOpenPassword] = useState("");
 
@@ -668,6 +672,8 @@ export default function App() {
     setSetOpenPemilikRekening(config.pemilikRekening || "Bendahara SMA Nusantara Mandiri");
     setSetOpenMerchantId(config.merchantId || "");
     setSetOpenLogo(config.logoSekolah || "");
+    setSetOpenNamaKepala(config.namaKepalaSekolah || "Drs. H. Mulyadi");
+    setSetOpenNipKepala(config.nipKepalaSekolah || "196805121993021003");
     
     // Load auth configurations from localStorage (default admin/admin123)
     setSetOpenUsername(localStorage.getItem("KAS_SEKOLAH_USER") || "admin");
@@ -688,7 +694,9 @@ export default function App() {
       rekeningBank: setOpenRekeningBank,
       pemilikRekening: setOpenPemilikRekening,
       merchantId: setOpenMerchantId,
-      logoSekolah: setOpenLogo
+      logoSekolah: setOpenLogo,
+      namaKepalaSekolah: setOpenNamaKepala,
+      nipKepalaSekolah: setOpenNipKepala
     };
     saveLocalConfig(updated);
     
@@ -1161,6 +1169,29 @@ export default function App() {
                   onChange={(e) => setSetOpenPenerima(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-white/5 border border-white/10 text-white font-semibold rounded-xl text-xs focus:ring-blue-400 focus:bg-slate-900/65 focus:outline-none focus:ring-2 focus:border-transparent"
                 />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-white/5 p-3 rounded-xl border border-white/5">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-300">Nama Kepala Sekolah</label>
+                  <input
+                    type="text"
+                    required
+                    value={setOpenNamaKepala}
+                    onChange={(e) => setSetOpenNamaKepala(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-950/40 border border-white/10 text-white font-semibold rounded-lg text-xs focus:ring-blue-400 focus:outline-none focus:ring-1"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-300">NIP Kepala Sekolah</label>
+                  <input
+                    type="text"
+                    required
+                    value={setOpenNipKepala}
+                    onChange={(e) => setSetOpenNipKepala(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-950/40 border border-white/10 text-white font-mono rounded-lg text-xs focus:ring-blue-400 focus:outline-none focus:ring-1"
+                  />
+                </div>
               </div>
 
               <div className="border-t border-white/10 pt-3 mt-2 space-y-3">

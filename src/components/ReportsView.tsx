@@ -54,6 +54,9 @@ export default function ReportsView({ transaksiList, config, onSyncFromSheet }: 
   const yearValue = String(now.getFullYear());
   
   // Filters states
+  const [filterMode, setFilterMode] = useState<'bulan' | 'rentang'>('bulan');
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
   const [selectedMonthNum, setSelectedMonthNum] = useState<string>(currentMonthValue);
   const [selectedYearNum, setSelectedYearNum] = useState<string>(yearValue);
   const [selectedType, setSelectedType] = useState<string>("Semua");
@@ -64,26 +67,48 @@ export default function ReportsView({ transaksiList, config, onSyncFromSheet }: 
 
   // Filtered transactions
   const filteredTrx = transaksiList.filter(t => {
-    const matchesYear = selectedYearNum === "Semua" || t.tanggal.startsWith(selectedYearNum);
+    if (!t.tanggal) return false;
     
-    let matchesMonth = true;
-    if (selectedMonthNum !== "Semua") {
-      const parts = t.tanggal.split("-");
-      if (parts.length >= 2) {
-        if (parts[1] !== selectedMonthNum) {
+    let matchesDate = true;
+    if (filterMode === 'bulan') {
+      const matchesYear = selectedYearNum === "Semua" || t.tanggal.startsWith(selectedYearNum);
+      let matchesMonth = true;
+      if (selectedMonthNum !== "Semua") {
+        const parts = t.tanggal.split("-");
+        if (parts.length >= 2) {
+          if (parts[1] !== selectedMonthNum) {
+            matchesMonth = false;
+          }
+        } else {
           matchesMonth = false;
         }
-      } else {
-        matchesMonth = false;
       }
+      matchesDate = matchesYear && matchesMonth;
+    } else {
+      const tDate = t.tanggal.substring(0, 10);
+      if (startDate && tDate < startDate) matchesDate = false;
+      if (endDate && tDate > endDate) matchesDate = false;
     }
 
     const matchesType = selectedType === "Semua" || t.jenisPembayaran === selectedType;
     const matchesMethod = selectedMethod === "Semua" || t.metode === selectedMethod;
-    return matchesYear && matchesMonth && matchesType && matchesMethod;
+    return matchesDate && matchesType && matchesMethod;
   });
 
   const getActiveMonthLabel = () => {
+    if (filterMode === 'rentang') {
+      if (startDate && endDate) {
+        return `Periode ${startDate} s.d ${endDate}`;
+      }
+      if (startDate) {
+        return `Periode Mulai ${startDate}`;
+      }
+      if (endDate) {
+        return `Periode Selesai ${endDate}`;
+      }
+      return "Semua Periode";
+    }
+
     if (selectedMonthNum === "Semua" && selectedYearNum === "Semua") {
       return "Semua Periode";
     }
@@ -329,10 +354,10 @@ export default function ReportsView({ transaksiList, config, onSyncFromSheet }: 
     doc.line(140, sigY + 24, 190, sigY + 24);
 
     doc.setFont("helvetica", "bold");
-    doc.text("( Drs. H. Mulyadi )", 15, sigY + 28);
+    doc.text(`( ${config.namaKepalaSekolah || "Drs. H. Mulyadi"} )`, 15, sigY + 28);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
-    doc.text("NIP. 196805121993021003", 15, sigY + 32);
+    doc.text(`NIP. ${config.nipKepalaSekolah || "196805121993021003"}`, 15, sigY + 32);
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
@@ -353,40 +378,92 @@ export default function ReportsView({ transaksiList, config, onSyncFromSheet }: 
       
       {/* Filters Form Panel */}
       <div className="glass glass-card p-5 rounded-2xl">
-        <div className="flex items-center gap-2 mb-4">
-          <Filter className="size-4.5 text-blue-400 animate-pulse" />
-          <h3 className="font-bold text-white text-base">Filter Jurnal Pembayaran</h3>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 pb-4 border-b border-white/10">
+          <div className="flex items-center gap-2">
+            <Filter className="size-4.5 text-blue-400 animate-pulse" />
+            <h3 className="font-bold text-white text-base">Filter Jurnal Pembayaran</h3>
+          </div>
+          <div className="flex bg-slate-950 p-1 rounded-xl border border-white/10 self-start">
+            <button
+              type="button"
+              onClick={() => setFilterMode('bulan')}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                filterMode === 'bulan'
+                  ? 'bg-blue-600 text-white shadow'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Bulanan / Tahunan
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterMode('rentang')}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                filterMode === 'rentang'
+                  ? 'bg-blue-600 text-white shadow'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Rentang Tanggal (Real-time)
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
           
-          <div className="space-y-1.5 animate-fade-in">
-            <label className="text-xs font-semibold text-slate-300">Pilih Bulan</label>
-            <select
-              value={selectedMonthNum}
-              onChange={(e) => setSelectedMonthNum(e.target.value)}
-              className="w-full px-3 py-2.5 bg-white/5 border border-white/10 text-white font-semibold rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-slate-900"
-            >
-              <option value="Semua" className="bg-slate-900 text-white">Semua Bulan</option>
-              {NAMA_BULAN.map((m) => (
-                <option key={m.key} value={m.key} className="bg-slate-900 text-white">{m.label}</option>
-              ))}
-            </select>
-          </div>
+          {filterMode === 'bulan' ? (
+            <>
+              <div className="space-y-1.5 animate-fade-in">
+                <label className="text-xs font-semibold text-slate-300">Pilih Bulan</label>
+                <select
+                  value={selectedMonthNum}
+                  onChange={(e) => setSelectedMonthNum(e.target.value)}
+                  className="w-full px-3 py-2.5 bg-white/5 border border-white/10 text-white font-semibold rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-slate-900"
+                >
+                  <option value="Semua" className="bg-slate-900 text-white">Semua Bulan</option>
+                  {NAMA_BULAN.map((m) => (
+                    <option key={m.key} value={m.key} className="bg-slate-900 text-white">{m.label}</option>
+                  ))}
+                </select>
+              </div>
 
-          <div className="space-y-1.5 animate-fade-in">
-            <label className="text-xs font-semibold text-slate-300">Pilih Tahun</label>
-            <select
-              value={selectedYearNum}
-              onChange={(e) => setSelectedYearNum(e.target.value)}
-              className="w-full px-3 py-2.5 bg-white/5 border border-white/10 text-white font-semibold rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-slate-900"
-            >
-              <option value="Semua" className="bg-slate-900 text-white">Semua Tahun</option>
-              {DAFTAR_TAHUN.map((y) => (
-                <option key={y} value={y} className="bg-slate-900 text-white">Tahun {y}</option>
-              ))}
-            </select>
-          </div>
+              <div className="space-y-1.5 animate-fade-in">
+                <label className="text-xs font-semibold text-slate-300">Pilih Tahun</label>
+                <select
+                  value={selectedYearNum}
+                  onChange={(e) => setSelectedYearNum(e.target.value)}
+                  className="w-full px-3 py-2.5 bg-white/5 border border-white/10 text-white font-semibold rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-slate-900"
+                >
+                  <option value="Semua" className="bg-slate-900 text-white">Semua Tahun</option>
+                  {DAFTAR_TAHUN.map((y) => (
+                    <option key={y} value={y} className="bg-slate-900 text-white">Tahun {y}</option>
+                  ))}
+                </select>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="space-y-1.5 animate-fade-in">
+                <label className="text-xs font-semibold text-slate-300">Dari Tanggal</label>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-full px-3 py-2 bg-white/5 border border-white/10 text-white font-semibold rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-slate-900"
+                />
+              </div>
+
+              <div className="space-y-1.5 animate-fade-in">
+                <label className="text-xs font-semibold text-slate-300">Sampai Tanggal</label>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="w-full px-3 py-2 bg-white/5 border border-white/10 text-white font-semibold rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-slate-900"
+                />
+              </div>
+            </>
+          )}
 
           <div className="space-y-1.5 animate-fade-in">
             <label className="text-xs font-semibold text-slate-300">Jenis Pembayaran</label>
@@ -691,8 +768,8 @@ export default function ReportsView({ transaksiList, config, onSyncFromSheet }: 
             <p>Mengetahui,</p>
             <p style={{ marginTop: "5px", fontWeight: "bold" }}>Kepala Sekolah</p>
             <div style={{ height: "60px" }}></div>
-            <p style={{ fontWeight: "bold", textDecoration: "underline" }}>( Drs. H. Mulyadi )</p>
-            <p>NIP. 196805121993021003</p>
+            <p style={{ fontWeight: "bold", textDecoration: "underline" }}>( {config.namaKepalaSekolah || "Drs. H. Mulyadi"} )</p>
+            <p>NIP. {config.nipKepalaSekolah || "196805121993021003"}</p>
           </div>
           <div style={{ textAlign: "right" }}>
             <p>Bandung, {new Date().toISOString().split("T")[0]}</p>
