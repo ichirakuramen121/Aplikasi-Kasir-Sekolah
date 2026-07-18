@@ -100,21 +100,27 @@ export function formatBulanIndo(monthKey: string): string {
 }
 
 /**
- * List of months in school year / calendar year
+ * List of months in school year / calendar year (dynamically calculated based on current date)
  */
+const dynamicDate = new Date();
+const dynamicYear = dynamicDate.getFullYear();
+const dynamicMonth = dynamicDate.getMonth() + 1; // 1-indexed
+const startYear = dynamicMonth >= 7 ? dynamicYear : dynamicYear - 1;
+const endYear = startYear + 1;
+
 export const DAFTAR_BULAN = [
-  { key: "2025-07", label: "Juli 2025" },
-  { key: "2025-08", label: "Agustus 2025" },
-  { key: "2025-09", label: "September 2025" },
-  { key: "2025-10", label: "Oktober 2025" },
-  { key: "2025-11", label: "November 2025" },
-  { key: "2025-12", label: "Desember 2025" },
-  { key: "2026-01", label: "Januari 2026" },
-  { key: "2026-02", label: "Februari 2026" },
-  { key: "2026-03", label: "Maret 2026" },
-  { key: "2026-04", label: "April 2026" },
-  { key: "2026-05", label: "Mei 2026" },
-  { key: "2026-06", label: "Juni 2026" }
+  { key: `${startYear}-07`, label: `Juli ${startYear}` },
+  { key: `${startYear}-08`, label: `Agustus ${startYear}` },
+  { key: `${startYear}-09`, label: `September ${startYear}` },
+  { key: `${startYear}-10`, label: `Oktober ${startYear}` },
+  { key: `${startYear}-11`, label: `November ${startYear}` },
+  { key: `${startYear}-12`, label: `Desember ${startYear}` },
+  { key: `${endYear}-01`, label: `Januari ${endYear}` },
+  { key: `${endYear}-02`, label: `Februari ${endYear}` },
+  { key: `${endYear}-03`, label: `Maret ${endYear}` },
+  { key: `${endYear}-04`, label: `April ${endYear}` },
+  { key: `${endYear}-05`, label: `Mei ${endYear}` },
+  { key: `${endYear}-06`, label: `Juni ${endYear}` }
 ];
 
 /**

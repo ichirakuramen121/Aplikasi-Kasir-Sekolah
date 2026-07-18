@@ -72,7 +72,10 @@ export default function PaymentView({
   // Form Fields
   const [jenisPembayaran, setJenisPembayaran] = useState<'SPP' | 'Uang Gedung' | 'Seragam' | 'Kegiatan' | 'Lainnya'>('SPP');
   const [selectedBiayaId, setSelectedBiayaId] = useState<string>("");
-  const [bulanCovered, setBulanCovered] = useState("2026-05");
+  const [bulanCovered, setBulanCovered] = useState(() => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+  });
   const [jumlah, setJumlah] = useState<number>(350000);
   const [isPartialPayment, setIsPartialPayment] = useState(false);
   const [jumlahBayarSekarang, setJumlahBayarSekarang] = useState<number>(350000);

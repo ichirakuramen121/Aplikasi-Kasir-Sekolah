@@ -277,7 +277,7 @@ export default function DashboardView({
             <h4 className="text-xl font-bold text-white tracking-tight">
               {siswaBelumBulanIni} <span className="text-slate-400 text-sm font-normal">Siswa</span>
             </h4>
-            <p className="text-[10px] text-amber-400 font-medium">Bulan berjalan: Mei 2026</p>
+            <p className="text-[10px] text-amber-400 font-medium">Bulan berjalan: {formatBulanIndo(currentMonthKey)}</p>
           </div>
         </div>
 
@@ -523,7 +523,7 @@ export default function DashboardView({
           )}
 
           <p className="text-[10px] text-slate-450 mt-4 leading-relaxed italic text-center font-sans">
-            Menunjukkan rekap SPP Bulan Mei 2026
+            Menunjukkan rekap SPP Bulan {formatBulanIndo(currentMonthKey)}
           </p>
         </div>
 
