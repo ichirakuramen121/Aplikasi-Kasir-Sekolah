@@ -4,7 +4,7 @@
  */
 
 import { Siswa, AppConfig } from "../types";
-import { formatRupiah, DAFTAR_BULAN } from "../utils";
+import { formatRupiah, DAFTAR_BULAN, normalizePhoneNumber } from "../utils";
 import React, { useState } from "react";
 import { 
   UserPlus, 
@@ -144,25 +144,7 @@ export default function StudentsView({
       const emailOrangTua = emailIdx !== -1 ? cols[emailIdx] : "";
       
       let teleponOrangTua = telpIdx !== -1 ? cols[telpIdx] : "";
-      if (teleponOrangTua) {
-        // Strip any Excel formatting markers in the phone number itself
-        if (teleponOrangTua.startsWith('="') && teleponOrangTua.endsWith('"')) {
-          teleponOrangTua = teleponOrangTua.substring(2, teleponOrangTua.length - 1);
-        }
-        if (teleponOrangTua.startsWith('"') && teleponOrangTua.endsWith('"')) {
-          teleponOrangTua = teleponOrangTua.substring(1, teleponOrangTua.length - 1);
-        }
-        if (teleponOrangTua.startsWith("'")) {
-          teleponOrangTua = teleponOrangTua.substring(1);
-        }
-        // Clean characters except numbers and '+' (thoroughly strips single/double quotes, letters, symbols, or formatting spaces)
-        let cleanedPhone = teleponOrangTua.replace(/[^0-9+]/g, "");
-        // If it starts with '8' and has a length of mobile number (9-13), auto prepend '0' for Indonesian mobile phone number convenience
-        if (/^8\d+$/.test(cleanedPhone) && cleanedPhone.length >= 9 && cleanedPhone.length <= 13) {
-          cleanedPhone = "0" + cleanedPhone;
-        }
-        teleponOrangTua = cleanedPhone;
-      }
+      teleponOrangTua = normalizePhoneNumber(teleponOrangTua);
       
       if (nis && nama) {
         parsedStudents.push({

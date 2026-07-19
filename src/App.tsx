@@ -7,7 +7,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Siswa, Transaksi, AppConfig, BiayaSekolah, NotifikasiLog } from "./types";
 import { SEED_SISWA, SEED_TRANSAKSI } from "./seedData";
-import { formatRupiah } from "./utils";
+import { formatRupiah, normalizePhoneNumber } from "./utils";
 
 import DashboardView from "./components/DashboardView";
 import PaymentView from "./components/PaymentView";
@@ -173,10 +173,19 @@ export default function App() {
 
     // 2. Get cached students or fall back
     const cachedSiswa = localStorage.getItem("KAS_SEKOLAH_SISWA");
-    let initialSiswa = SEED_SISWA;
+    let initialSiswa = SEED_SISWA.map(s => ({
+      ...s,
+      teleponOrangTua: normalizePhoneNumber(s.teleponOrangTua)
+    }));
     if (cachedSiswa) {
       try {
-        initialSiswa = JSON.parse(cachedSiswa);
+        const parsed = JSON.parse(cachedSiswa);
+        if (Array.isArray(parsed)) {
+          initialSiswa = parsed.map(s => ({
+            ...s,
+            teleponOrangTua: normalizePhoneNumber(s.teleponOrangTua)
+          }));
+        }
       } catch (e) {}
     }
     setSiswaList(initialSiswa);
@@ -266,9 +275,13 @@ export default function App() {
           if (dbBody.success && dbBody.data) {
             const { siswa, transaksi, biaya, logs } = dbBody.data;
             if (siswa) {
-              setSiswaList(siswa);
-              localStorage.setItem("KAS_SEKOLAH_SISWA", JSON.stringify(siswa));
-              activeSiswa = siswa;
+              const normalizedSiswa = (siswa || []).map((s: any) => ({
+                ...s,
+                teleponOrangTua: normalizePhoneNumber(s.teleponOrangTua)
+              }));
+              setSiswaList(normalizedSiswa);
+              localStorage.setItem("KAS_SEKOLAH_SISWA", JSON.stringify(normalizedSiswa));
+              activeSiswa = normalizedSiswa;
             }
             if (transaksi) {
               setTransaksiList(transaksi);
@@ -332,9 +345,13 @@ export default function App() {
     newBiaya?: BiayaSekolah[],
     newLogs?: NotifikasiLog[]
   ) => {
-    setSiswaList(newSiswa);
+    const normalizedSiswa = (newSiswa || []).map((s) => ({
+      ...s,
+      teleponOrangTua: normalizePhoneNumber(s.teleponOrangTua)
+    }));
+    setSiswaList(normalizedSiswa);
     setTransaksiList(newTransaksi);
-    localStorage.setItem("KAS_SEKOLAH_SISWA", JSON.stringify(newSiswa));
+    localStorage.setItem("KAS_SEKOLAH_SISWA", JSON.stringify(normalizedSiswa));
     localStorage.setItem("KAS_SEKOLAH_TRANSAKSI", JSON.stringify(newTransaksi));
     
     if (newBiaya) {
@@ -347,7 +364,7 @@ export default function App() {
     }
 
     saveGlobalDatabaseOnServer(
-      newSiswa,
+      normalizedSiswa,
       newTransaksi,
       newBiaya !== undefined ? newBiaya : biayaList,
       newLogs !== undefined ? newLogs : notificationLogs
@@ -355,9 +372,13 @@ export default function App() {
   };
 
   const saveLocalSiswa = (list: Siswa[]) => {
-    setSiswaList(list);
-    localStorage.setItem("KAS_SEKOLAH_SISWA", JSON.stringify(list));
-    saveGlobalDatabaseOnServer(list);
+    const normalizedSiswa = (list || []).map((s) => ({
+      ...s,
+      teleponOrangTua: normalizePhoneNumber(s.teleponOrangTua)
+    }));
+    setSiswaList(normalizedSiswa);
+    localStorage.setItem("KAS_SEKOLAH_SISWA", JSON.stringify(normalizedSiswa));
+    saveGlobalDatabaseOnServer(normalizedSiswa);
   };
 
   const saveLocalTransaksi = (list: Transaksi[]) => {
@@ -475,7 +496,10 @@ export default function App() {
         console.log("[Sheets API Sync] Connected successfully!");
         
         // Merge state from sheets if records exist
-        const sheetSiswa: Siswa[] = body.data.siswa || [];
+        const sheetSiswa: Siswa[] = (body.data.siswa || []).map((s: any) => ({
+          ...s,
+          teleponOrangTua: normalizePhoneNumber(s.teleponOrangTua)
+        }));
         const sheetTransaksi: Transaksi[] = body.data.transaksi || [];
         const sheetBiaya: BiayaSekolah[] = body.data.biaya || [];
         const sheetLogs: NotifikasiLog[] = body.data.logs || [];

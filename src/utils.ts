@@ -230,3 +230,32 @@ export function formatDateTimeClean(tanggal: string): string {
   return tanggal;
 }
 
+/**
+ * Normalizes a student parent's phone number to standard Indonesian format (with leading '0')
+ */
+export function normalizePhoneNumber(phoneVal: any): string {
+  if (phoneVal === undefined || phoneVal === null) return "-";
+  let phone = String(phoneVal).trim();
+  if (phone === "" || phone === "-" || phone === "null" || phone === "undefined") {
+    return "-";
+  }
+  // Strip single quotes, double quotes, formula signs like ="0812" -> 0812
+  phone = phone.replace(/^['"=]+|['"]+$/g, "");
+  
+  // Clean characters except numbers and '+'
+  let cleaned = phone.replace(/[^0-9+]/g, "");
+  
+  // If it starts with '8' and has a length of mobile number (9-13), auto prepend '0'
+  if (/^8\d+$/.test(cleaned) && cleaned.length >= 9 && cleaned.length <= 13) {
+    cleaned = "0" + cleaned;
+  }
+  
+  // If it starts with '628' and has length of mobile number (11-15), convert to '08' for local display
+  if (/^628\d+$/.test(cleaned) && cleaned.length >= 11 && cleaned.length <= 15) {
+    cleaned = "0" + cleaned.slice(2);
+  }
+  
+  return cleaned;
+}
+
+
