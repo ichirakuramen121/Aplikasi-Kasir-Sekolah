@@ -29,7 +29,7 @@ interface StudentsViewProps {
   siswaList: Siswa[];
   config?: AppConfig;
   onAddSiswa: (siswa: Siswa) => void;
-  onAddSiswaBatch?: (siswaArray: Siswa[]) => void;
+  onAddSiswaBatch?: (siswaArray: Siswa[], isReplace?: boolean) => void;
   onEditSiswa: (siswa: Siswa) => void;
   onDeleteSiswa: (id: string) => void;
   onNavigateToPayment: (siswaId: string) => void;
@@ -61,6 +61,7 @@ export default function StudentsView({
   const [csvPreviewList, setCsvPreviewList] = useState<any[]>([]);
   const [csvFileName, setCsvFileName] = useState("");
   const [isDragging, setIsDragging] = useState(false);
+  const [importMode, setImportMode] = useState<'append' | 'replace'>('replace');
 
   // Form states
   const [formId, setFormId] = useState("");
@@ -120,8 +121,17 @@ export default function StudentsView({
       const currentLine = lines[i];
       const cols = currentLine.split(separator).map(col => {
         let val = col.trim();
+        // Handle Excel formulas like ="08123"
+        if (val.startsWith('="') && val.endsWith('"')) {
+          val = val.substring(2, val.length - 1);
+        }
+        // Handle normal quotes like "08123"
         if (val.startsWith('"') && val.endsWith('"')) {
           val = val.substring(1, val.length - 1);
+        }
+        // Handle single quote text prefix like '08123
+        if (val.startsWith("'")) {
+          val = val.substring(1);
         }
         return val;
       });
@@ -132,7 +142,27 @@ export default function StudentsView({
       const angkatan = cols[angkatanIdx] || "2026";
       const tagihanSpp = parseInt(cols[tagihanSppIdx], 10) || 350000;
       const emailOrangTua = emailIdx !== -1 ? cols[emailIdx] : "";
-      const teleponOrangTua = telpIdx !== -1 ? cols[telpIdx] : "";
+      
+      let teleponOrangTua = telpIdx !== -1 ? cols[telpIdx] : "";
+      if (teleponOrangTua) {
+        // Strip any Excel formatting markers in the phone number itself
+        if (teleponOrangTua.startsWith('="') && teleponOrangTua.endsWith('"')) {
+          teleponOrangTua = teleponOrangTua.substring(2, teleponOrangTua.length - 1);
+        }
+        if (teleponOrangTua.startsWith('"') && teleponOrangTua.endsWith('"')) {
+          teleponOrangTua = teleponOrangTua.substring(1, teleponOrangTua.length - 1);
+        }
+        if (teleponOrangTua.startsWith("'")) {
+          teleponOrangTua = teleponOrangTua.substring(1);
+        }
+        // Clean characters except numbers and '+' (thoroughly strips single/double quotes, letters, symbols, or formatting spaces)
+        let cleanedPhone = teleponOrangTua.replace(/[^0-9+]/g, "");
+        // If it starts with '8' and has a length of mobile number (9-13), auto prepend '0' for Indonesian mobile phone number convenience
+        if (/^8\d+$/.test(cleanedPhone) && cleanedPhone.length >= 9 && cleanedPhone.length <= 13) {
+          cleanedPhone = "0" + cleanedPhone;
+        }
+        teleponOrangTua = cleanedPhone;
+      }
       
       if (nis && nama) {
         parsedStudents.push({
@@ -227,9 +257,12 @@ export default function StudentsView({
     const newSiswaList: Siswa[] = [];
 
     csvPreviewList.forEach((parsed, index) => {
-      // Check duplicate
-      const exists = siswaList.some(s => s.nis === parsed.nis) || newSiswaList.some(s => s.nis === parsed.nis);
-      if (exists) {
+      // If we are appending, check duplicate against current list, otherwise only against the newly parsed list
+      const isDuplicate = importMode === 'append'
+        ? siswaList.some(s => s.nis === parsed.nis) || newSiswaList.some(s => s.nis === parsed.nis)
+        : newSiswaList.some(s => s.nis === parsed.nis);
+        
+      if (isDuplicate) {
         duplicateCount++;
         return;
       }
@@ -252,13 +285,22 @@ export default function StudentsView({
 
     if (newSiswaList.length > 0) {
       if (onAddSiswaBatch) {
-        onAddSiswaBatch(newSiswaList);
+        onAddSiswaBatch(newSiswaList, importMode === 'replace');
       } else {
-        newSiswaList.forEach(s => onAddSiswa(s));
+        if (importMode === 'replace') {
+          // Fallback if batch add is not available, but since it is, it'll run onAddSiswaBatch
+          newSiswaList.forEach(s => onAddSiswa(s));
+        } else {
+          newSiswaList.forEach(s => onAddSiswa(s));
+        }
       }
     }
 
-    alert(`Proses impor selesai! Berhasil menambahkan ${addedCount} siswa baru ke sistem.${duplicateCount > 0 ? ` Terlewati ${duplicateCount} baris dDuplikasi NIS.` : ""}`);
+    if (importMode === 'replace') {
+      alert(`Proses impor selesai! Seluruh data siswa lama telah digantikan dengan ${addedCount} data siswa baru.${duplicateCount > 0 ? ` Terlewati ${duplicateCount} baris dDuplikasi NIS dalam berkas.` : ""}`);
+    } else {
+      alert(`Proses impor selesai! Berhasil menambahkan ${addedCount} siswa baru ke sistem.${duplicateCount > 0 ? ` Terlewati ${duplicateCount} baris dDuplikasi NIS dengan data yang ada.` : ""}`);
+    }
     
     // Reset
     setCsvPreviewList([]);
@@ -764,21 +806,68 @@ export default function StudentsView({
           {/* Step 3: Review Preview & execute */}
           {csvPreviewList.length > 0 && (
             <div className="mt-4 bg-white/5 border border-white/10 rounded-xl p-4 space-y-3">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5 pb-3">
                 <div>
                   <h4 className="text-xs font-bold text-white">Langkah 3: Pratinjau Data yang Siap Diimpor</h4>
                   <p className="text-[10px] text-slate-400 mt-0.5">
-                    Membaca {csvPreviewList.length} siswa baru dari berkas. Klik 'Konfirmasi Impor' untuk mendaftarkan ke database.
+                    Membaca {csvPreviewList.length} siswa dari berkas. Silakan pilih metode impor:
                   </p>
+                </div>
+
+                {/* Import Mode Selection */}
+                <div className="flex items-center gap-1.5 bg-slate-900/60 p-1 rounded-xl border border-white/10">
+                  <button
+                    type="button"
+                    onClick={() => setImportMode('append')}
+                    className={`px-3 py-1.5 rounded-lg text-[10px] font-bold cursor-pointer transition-all ${
+                      importMode === 'append'
+                        ? 'bg-blue-600 text-white shadow-md'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Tambahkan (Append)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setImportMode('replace')}
+                    className={`px-3 py-1.5 rounded-lg text-[10px] font-bold cursor-pointer transition-all ${
+                      importMode === 'replace'
+                        ? 'bg-amber-600 text-white shadow-md'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Gantikan Semua (Replace)
+                  </button>
                 </div>
                 
                 <button
                   onClick={executeImport}
-                  className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-bold px-4 py-2 text-xs shadow-md transition-colors cursor-pointer"
+                  className={`flex items-center gap-2 rounded-lg font-bold px-4 py-2 text-xs shadow-md transition-colors cursor-pointer text-white active:scale-95 ${
+                    importMode === 'replace'
+                      ? 'bg-amber-500 hover:bg-amber-600 shadow-amber-500/15'
+                      : 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/15'
+                  }`}
                 >
                   <Check className="size-4" />
                   Konfirmasi Impor ({csvPreviewList.length} Siswa)
                 </button>
+              </div>
+
+              {/* Dynamic warning/info description based on selected import mode */}
+              <div className={`p-3 rounded-xl text-[11px] leading-relaxed border ${
+                importMode === 'replace' 
+                  ? 'bg-amber-500/10 text-amber-300 border-amber-500/20' 
+                  : 'bg-blue-500/10 text-blue-300 border-blue-500/20'
+              }`}>
+                {importMode === 'replace' ? (
+                  <span>
+                    <strong>⚠️ Mode Gantikan Semua (Replace) Aktif (Default):</strong> Seluruh data siswa lama yang ada di database akan <strong>dihapus total</strong> dan digantikan secara 100% presisi dengan {csvPreviewList.length} data siswa dari file CSV ini. Hasil akhir database dijamin sama persis dengan berkas CSV Anda.
+                  </span>
+                ) : (
+                  <span>
+                    <strong>ℹ️ Mode Tambahkan (Append) Aktif:</strong> Siswa baru dari berkas CSV akan ditambahkan ke dalam database yang ada tanpa menghapus data siswa lama. Siswa dengan NIS yang sudah ada di database akan dilewati secara otomatis untuk mencegah duplikasi.
+                  </span>
+                )}
               </div>
 
               <div className="overflow-x-auto max-h-48 border border-white/5 rounded-lg">

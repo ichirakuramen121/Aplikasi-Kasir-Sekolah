@@ -699,8 +699,8 @@ export default function App() {
     saveSiswaMaster(updated);
   };
 
-  const handleAddSiswaBatch = (newSiswaArray: Siswa[]) => {
-    const updated = [...siswaList, ...newSiswaArray];
+  const handleAddSiswaBatch = (newSiswaArray: Siswa[], isReplace?: boolean) => {
+    const updated = isReplace ? newSiswaArray : [...siswaList, ...newSiswaArray];
     saveSiswaMaster(updated);
   };
 
